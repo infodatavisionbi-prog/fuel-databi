@@ -25,19 +25,19 @@ export function AuthProvider({ children }) {
   }, [])
 
   const loadProfile = useCallback(async (userId) => {
-    try {
-      if (!userId) {
-        clearProfile()
-        return null
-      }
+    if (!userId) {
+      clearProfile()
+      return null
+    }
 
+    try {
       console.log('Cargando profile:', userId)
 
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .maybeSingle()
+        .single()
 
       if (error) {
         console.error('Profile error:', error)
@@ -46,13 +46,11 @@ export function AuthProvider({ children }) {
       }
 
       if (!data) {
-        console.warn('Profile no encontrado')
         clearProfile()
         return null
       }
 
       if (!data.is_active) {
-        console.warn('Usuario inactivo')
         clearProfile()
         setSession(null)
         await supabase.auth.signOut()
@@ -62,7 +60,7 @@ export function AuthProvider({ children }) {
       localStorage.setItem(PROFILE_CACHE, JSON.stringify(data))
       setProfile(data)
 
-      // No bloquea la carga
+      // No bloquea la app
       supabase
         .from('profiles')
         .update({ last_seen_at: new Date().toISOString() })
@@ -82,7 +80,7 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let alive = true
 
-    async function initAuth() {
+    const initAuth = async () => {
       try {
         console.log('Init auth...')
 
@@ -105,11 +103,7 @@ export function AuthProvider({ children }) {
           return
         }
 
-        const loadedProfile = await loadProfile(currentSession.user.id)
-
-        if (!loadedProfile) {
-          console.warn('No se pudo cargar profile')
-        }
+        await loadProfile(currentSession.user.id)
       } catch (err) {
         console.error('initAuth crash:', err)
         if (!alive) return
@@ -117,7 +111,6 @@ export function AuthProvider({ children }) {
         clearProfile()
       } finally {
         if (alive) {
-          console.log('Auth loading false')
           setLoading(false)
         }
       }
@@ -125,32 +118,23 @@ export function AuthProvider({ children }) {
 
     initAuth()
 
-    const { data } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+    const { data } = supabase.auth.onAuthStateChange((event, newSession) => {
       console.log('Auth event:', event)
 
       if (event === 'INITIAL_SESSION') return
 
-      try {
-        setLoading(true)
-        setSession(newSession)
+      setSession(newSession)
 
-        if (!newSession) {
-          clearProfile()
-          return
-        }
-
-        if (event === 'TOKEN_REFRESHED') {
-          return
-        }
-
-        await loadProfile(newSession.user.id)
-      } catch (err) {
-        console.error('Auth state crash:', err)
-        setSession(null)
+      if (!newSession) {
         clearProfile()
-      } finally {
         setLoading(false)
+        return
       }
+
+      // Importante: sin await acá para evitar loop/race condition
+      loadProfile(newSession.user.id)
+
+      setLoading(false)
     })
 
     return () => {
@@ -212,9 +196,16 @@ export function AuthProvider({ children }) {
   }
 
   const logout = async () => {
-    clearProfile()
-    setSession(null)
-    await supabase.auth.signOut()
+    try {
+      clearProfile()
+      setSession(null)
+      sessionStorage.removeItem('fuel.sess')
+      await supabase.auth.signOut()
+    } catch (err) {
+      console.error('Logout error:', err)
+      clearProfile()
+      setSession(null)
+    }
   }
 
   const isAdmin = profile?.role === 'admin'
