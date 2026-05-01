@@ -5,12 +5,25 @@ import { useLang } from '../context/LanguageContext.jsx'
 
 const emptyForm = { name: '', embed_url: '', description: '' }
 
+// Extrae el src del iframe si el usuario pega el código completo de Power BI
+function extractEmbedUrl(raw) {
+  const trimmed = raw.trim()
+  // Si ya es una URL limpia, devolverla
+  if (trimmed.startsWith('http')) return trimmed
+  // Extraer src="..." o src='...' del iframe
+  const match = trimmed.match(/src=["']([^"']+)["']/)
+  if (match) return match[1]
+  return trimmed
+}
+
 export default function AdminDashboards() {
   const { t } = useLang()
   const [dashboards, setDashboards] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [editing, setEditing] = useState(null)
-  const [form, setForm] = useState(emptyForm)
+  const [loading, setLoading]       = useState(true)
+  const [saving, setSaving]         = useState(false)
+  const [editing, setEditing]       = useState(null)
+  const [form, setForm]             = useState(emptyForm)
+  const [formError, setFormError]   = useState('')
 
   const load = async () => {
     setLoading(true)
@@ -27,24 +40,50 @@ export default function AdminDashboards() {
   const openNew = () => {
     setEditing({ id: null })
     setForm(emptyForm)
+    setFormError('')
   }
 
   const openEdit = (board) => {
     setEditing(board)
     setForm({
-      name: board.name || '',
-      embed_url: board.embed_url || '',
+      name:        board.name || '',
+      embed_url:   board.embed_url || '',
       description: board.description || '',
     })
+    setFormError('')
+  }
+
+  const handleUrlChange = (raw) => {
+    const url = extractEmbedUrl(raw)
+    setForm(f => ({ ...f, embed_url: url }))
   }
 
   const save = async () => {
-    if (!form.name || !form.embed_url) return
-    if (editing.id) {
-      await supabase.from('dashboards').update(form).eq('id', editing.id)
-    } else {
-      await supabase.from('dashboards').insert(form)
+    setFormError('')
+    if (!form.name.trim()) { setFormError('El nombre es obligatorio'); return }
+    if (!form.embed_url.trim()) { setFormError('La URL de embed es obligatoria'); return }
+
+    setSaving(true)
+    const payload = {
+      name:        form.name.trim(),
+      embed_url:   form.embed_url.trim(),
+      description: form.description.trim(),
     }
+
+    let error
+    if (editing.id) {
+      ({ error } = await supabase.from('dashboards').update(payload).eq('id', editing.id))
+    } else {
+      ({ error } = await supabase.from('dashboards').insert(payload))
+    }
+
+    setSaving(false)
+
+    if (error) {
+      setFormError(error.message || 'Error al guardar. ¿Sos admin?')
+      return
+    }
+
     setEditing(null)
     setForm(emptyForm)
     load()
@@ -104,24 +143,66 @@ export default function AdminDashboards() {
         <div className="modal-overlay open">
           <div className="modal">
             <div className="modal-header">
-              <div className="modal-title">{editing.id ? t('admin.boards.edit') : t('admin.boards.new')}</div>
-              <button className="btn btn-ghost btn-icon" onClick={() => setEditing(null)}>x</button>
+              <div className="modal-title">
+                {editing.id ? t('admin.boards.edit') : t('admin.boards.new')}
+              </div>
+              <button className="btn btn-ghost btn-icon" onClick={() => setEditing(null)}>✕</button>
             </div>
+
             <div className="form-group">
               <label className="form-label">{t('admin.boards.name')}</label>
-              <input className="form-input" value={form.name} placeholder={t('admin.boards.name_placeholder')} onChange={e => setForm({ ...form, name: e.target.value })} />
+              <input
+                className="form-input"
+                value={form.name}
+                placeholder={t('admin.boards.name_placeholder')}
+                onChange={e => setForm({ ...form, name: e.target.value })}
+              />
             </div>
+
             <div className="form-group">
-              <label className="form-label">{t('admin.boards.embed_url')}</label>
-              <textarea className="form-input form-textarea" value={form.embed_url} placeholder={t('admin.boards.url_hint')} onChange={e => setForm({ ...form, embed_url: e.target.value })} />
+              <label className="form-label">
+                {t('admin.boards.embed_url')}
+                <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: 6 }}>
+                  — podés pegar la URL o el código iframe completo
+                </span>
+              </label>
+              <textarea
+                className="form-input form-textarea"
+                value={form.embed_url}
+                placeholder={t('admin.boards.url_hint')}
+                onChange={e => handleUrlChange(e.target.value)}
+              />
+              {form.embed_url.startsWith('http') && (
+                <div style={{ fontSize: 11, color: 'var(--success)', marginTop: 4 }}>
+                  ✓ URL detectada correctamente
+                </div>
+              )}
             </div>
+
             <div className="form-group">
               <label className="form-label">{t('admin.boards.description')}</label>
-              <input className="form-input" value={form.description} placeholder={t('admin.boards.desc_placeholder')} onChange={e => setForm({ ...form, description: e.target.value })} />
+              <input
+                className="form-input"
+                value={form.description}
+                placeholder={t('admin.boards.desc_placeholder')}
+                onChange={e => setForm({ ...form, description: e.target.value })}
+              />
             </div>
+
+            {formError && (
+              <div className="form-error visible" style={{ marginBottom: 14 }}>
+                {formError}
+              </div>
+            )}
+
             <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setEditing(null)}>{t('common.cancel')}</button>
-              <button className="btn btn-primary" onClick={save}>{t('admin.boards.save')}</button>
+              <button className="btn btn-secondary" onClick={() => setEditing(null)}>
+                {t('common.cancel')}
+              </button>
+              <button className="btn btn-primary" onClick={save} disabled={saving}>
+                {saving ? <span className="spinner" style={{ width: 14, height: 14 }} /> : null}
+                {t('admin.boards.save')}
+              </button>
             </div>
           </div>
         </div>
