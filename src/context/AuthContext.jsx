@@ -19,7 +19,7 @@ export function AuthProvider({ children }) {
 
   const [profile, setProfile] = useState(cachedProfile)
   const [session, setSession] = useState(null)
-  const [loading, setLoading] = useState(!cachedProfile)
+  const [loading, setLoading] = useState(true)
 
   const clearProfile = useCallback(() => {
     setProfile(null)
@@ -52,25 +52,28 @@ export function AuthProvider({ children }) {
 
       if (!data.is_active) {
         clearProfile()
-        await supabase.auth.signOut()
         setSession(null)
+        await supabase.auth.signOut()
         return null
       }
 
       localStorage.setItem(PROFILE_CACHE, JSON.stringify(data))
       setProfile(data)
 
+      // No bloquea la carga de la app
       supabase
         .from('profiles')
         .update({ last_seen_at: new Date().toISOString() })
         .eq('id', userId)
         .then(({ error }) => {
-          if (error) console.warn('No se pudo actualizar last_seen_at:', error)
+          if (error) {
+            console.warn('No se pudo actualizar last_seen_at:', error)
+          }
         })
 
       return data
     } catch (err) {
-      console.error('Crash en loadProfile:', err)
+      console.error('Crash loadProfile:', err)
       clearProfile()
       return null
     }
@@ -110,13 +113,7 @@ export function AuthProvider({ children }) {
           clearProfile()
         }
 
-        const loadedProfile = await loadProfile(session.user.id)
-
-        if (!mounted) return
-
-        if (!loadedProfile) {
-          clearProfile()
-        }
+        await loadProfile(session.user.id)
       } catch (err) {
         console.error('Auth init error:', err)
         if (!mounted) return
@@ -146,15 +143,10 @@ export function AuthProvider({ children }) {
         }
 
         if (event === 'TOKEN_REFRESHED') {
-          setLoading(false)
           return
         }
 
-        const loadedProfile = await loadProfile(newSession.user.id)
-
-        if (!loadedProfile) {
-          clearProfile()
-        }
+        await loadProfile(newSession.user.id)
       } catch (err) {
         console.error('Auth state error:', err)
         setSession(null)
