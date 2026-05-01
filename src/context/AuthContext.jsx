@@ -6,17 +6,17 @@ const PROFILE_CACHE = 'fuel.profile'
 
 export function AuthProvider({ children }) {
   const [session, setSession]   = useState(null)
-  const [profile, setProfile]   = useState(null)
-  const [loading, setLoading]   = useState(true)
-
-  const withTimeout = (promise, ms = 10000) => {
-    return Promise.race([
-      promise,
-      new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Timeout conectando con Supabase')), ms)
-      }),
-    ])
-  }
+  const [profile, setProfile]   = useState(() => {
+    // Restore profile from cache synchronously — no network, instant
+    try {
+      const raw = localStorage.getItem(PROFILE_CACHE)
+      return raw ? JSON.parse(raw) : null
+    } catch {
+      return null
+    }
+  })
+  // Start as "loading" only if there is NO cached profile to show
+  const [loading, setLoading]   = useState(() => !localStorage.getItem(PROFILE_CACHE))
 
   const loadProfile = useCallback(async (userId) => {
     const { data, error } = await supabase
@@ -48,27 +48,38 @@ export function AuthProvider({ children }) {
   }, [])
 
   useEffect(() => {
+    // Verify session in background — does not block the UI
     supabase.auth.getSession()
       .then(({ data: { session } }) => {
         setSession(session)
         if (session) {
-          // Mostrar perfil cacheado de inmediato (sin esperar la red)
-          const cached = localStorage.getItem(PROFILE_CACHE)
-          if (cached) {
+          // Make sure cached profile belongs to this user
+          const raw = localStorage.getItem(PROFILE_CACHE)
+          if (raw) {
             try {
-              const parsed = JSON.parse(cached)
-              if (parsed.id === session.user.id) setProfile(parsed)
-            } catch {}
+              const parsed = JSON.parse(raw)
+              if (parsed.id !== session.user.id) {
+                setProfile(null)
+                localStorage.removeItem(PROFILE_CACHE)
+              }
+            } catch {
+              localStorage.removeItem(PROFILE_CACHE)
+            }
           }
-          // Refrescar en segundo plano
+          // Refresh from DB in background
           loadProfile(session.user.id).catch(console.error)
+        } else {
+          // No valid session — clear stale cache
+          setProfile(null)
+          localStorage.removeItem(PROFILE_CACHE)
         }
       })
-      .catch(async (error) => {
+      .catch((error) => {
         console.error('Auth init error:', error)
-        await supabase.auth.signOut().catch(() => {})
         setSession(null)
         setProfile(null)
+        localStorage.removeItem(PROFILE_CACHE)
+        supabase.auth.signOut().catch(() => {})
       })
       .finally(() => {
         setLoading(false)
@@ -82,12 +93,14 @@ export function AuthProvider({ children }) {
             await loadProfile(session.user.id)
           } else {
             setProfile(null)
+            localStorage.removeItem(PROFILE_CACHE)
           }
         } catch (error) {
           console.error('Auth state error:', error)
-          await supabase.auth.signOut().catch(() => {})
+          supabase.auth.signOut().catch(() => {})
           setSession(null)
           setProfile(null)
+          localStorage.removeItem(PROFILE_CACHE)
         }
       }
     )

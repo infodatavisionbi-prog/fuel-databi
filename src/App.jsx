@@ -37,7 +37,8 @@ class ErrorBoundary extends Component {
 function AppGate() {
   const { session, profile, loading, logout } = useAuth()
 
-  if (loading) {
+  // Only show loading spinner when there is nothing cached to display yet
+  if (loading && !profile) {
     return (
       <div className="auth-screen">
         <div className="loading-panel">
@@ -46,6 +47,13 @@ function AppGate() {
         </div>
       </div>
     )
+  }
+
+  // If profile exists (cached or verified), show the app immediately.
+  // Session verification happens in the background — if it fails, profile
+  // will be cleared and the user will be redirected to the login screen.
+  if (profile) {
+    return <Layout />
   }
 
   // Session exists but no profile row — schema not applied or user created manually
@@ -64,7 +72,7 @@ function AppGate() {
     )
   }
 
-  return session ? <Layout /> : <AuthScreen />
+  return <AuthScreen />
 }
 
 export default function App() {
