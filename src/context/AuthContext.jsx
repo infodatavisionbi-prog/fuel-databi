@@ -4,19 +4,22 @@ import { supabase } from '../lib/supabase.js'
 const AuthContext = createContext(null)
 const PROFILE_CACHE = 'fuel.profile'
 
+function readCache() {
+  try {
+    const raw = localStorage.getItem(PROFILE_CACHE)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    localStorage.removeItem(PROFILE_CACHE)
+    return null
+  }
+}
+
 export function AuthProvider({ children }) {
-  const [session, setSession]   = useState(null)
-  const [profile, setProfile]   = useState(() => {
-    // Restore profile from cache synchronously — no network, instant
-    try {
-      const raw = localStorage.getItem(PROFILE_CACHE)
-      return raw ? JSON.parse(raw) : null
-    } catch {
-      return null
-    }
-  })
-  // Start as "loading" only if there is NO cached profile to show
-  const [loading, setLoading]   = useState(() => !localStorage.getItem(PROFILE_CACHE))
+  // Restore profile from cache synchronously — zero network, instant
+  const [profile, setProfile] = useState(readCache)
+  const [session, setSession] = useState(null)
+  // Skip loading screen entirely when we already have a cached profile
+  const [loading, setLoading] = useState(!readCache())
 
   const loadProfile = useCallback(async (userId) => {
     const { data, error } = await supabase
@@ -48,30 +51,37 @@ export function AuthProvider({ children }) {
   }, [])
 
   useEffect(() => {
-    // Verify session in background — does not block the UI
+    const hasCache = !!readCache()
+
+    // Safety valve: never block the UI more than 12 seconds
+    const failsafe = hasCache ? null : setTimeout(() => setLoading(false), 12000)
+
     supabase.auth.getSession()
-      .then(({ data: { session } }) => {
+      .then(async ({ data: { session } }) => {
         setSession(session)
-        if (session) {
-          // Make sure cached profile belongs to this user
-          const raw = localStorage.getItem(PROFILE_CACHE)
-          if (raw) {
-            try {
-              const parsed = JSON.parse(raw)
-              if (parsed.id !== session.user.id) {
-                setProfile(null)
-                localStorage.removeItem(PROFILE_CACHE)
-              }
-            } catch {
-              localStorage.removeItem(PROFILE_CACHE)
-            }
-          }
-          // Refresh from DB in background
-          loadProfile(session.user.id).catch(console.error)
-        } else {
-          // No valid session — clear stale cache
+
+        if (!session) {
+          // Logged out — clear any stale cache
           setProfile(null)
           localStorage.removeItem(PROFILE_CACHE)
+          return
+        }
+
+        // If cache exists, make sure it belongs to THIS user
+        const cached = readCache()
+        if (cached && cached.id !== session.user.id) {
+          setProfile(null)
+          localStorage.removeItem(PROFILE_CACHE)
+        }
+
+        if (hasCache) {
+          // Cache is valid — refresh DB in background, don't block UI
+          loadProfile(session.user.id).catch(console.error)
+        } else {
+          // No cache — must fetch before releasing loading state
+          await loadProfile(session.user.id).catch((err) => {
+            console.error('loadProfile error:', err)
+          })
         }
       })
       .catch((error) => {
@@ -82,6 +92,7 @@ export function AuthProvider({ children }) {
         supabase.auth.signOut().catch(() => {})
       })
       .finally(() => {
+        if (failsafe) clearTimeout(failsafe)
         setLoading(false)
       })
 
@@ -118,9 +129,7 @@ export function AuthProvider({ children }) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        data: { full_name: fullName, company_name: companyName },
-      },
+      options: { data: { full_name: fullName, company_name: companyName } },
     })
     if (error) throw error
     return data
