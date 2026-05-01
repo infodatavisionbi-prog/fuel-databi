@@ -15,118 +15,174 @@ function readCache() {
 }
 
 export function AuthProvider({ children }) {
-  // Restore profile from cache synchronously — zero network, instant
-  const [profile, setProfile] = useState(readCache)
+  const cachedProfile = readCache()
+
+  const [profile, setProfile] = useState(cachedProfile)
   const [session, setSession] = useState(null)
-  // Skip loading screen entirely when we already have a cached profile
-  const [loading, setLoading] = useState(!readCache())
+  const [loading, setLoading] = useState(!cachedProfile)
 
-  const loadProfile = useCallback(async (userId) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle()
-
-    if (error) throw error
-
-    if (!data) {
-      setProfile(null)
-      localStorage.removeItem(PROFILE_CACHE)
-      return null
-    }
-
-    if (!data.is_active) {
-      localStorage.removeItem(PROFILE_CACHE)
-      await supabase.auth.signOut()
-      setProfile(null)
-      setSession(null)
-      return null
-    }
-
-    localStorage.setItem(PROFILE_CACHE, JSON.stringify(data))
-    setProfile(data)
-    supabase.from('profiles').update({ last_seen_at: new Date().toISOString() }).eq('id', userId).then(() => {})
-    return data
+  const clearProfile = useCallback(() => {
+    setProfile(null)
+    localStorage.removeItem(PROFILE_CACHE)
   }, [])
 
+  const loadProfile = useCallback(async (userId) => {
+    try {
+      if (!userId) {
+        clearProfile()
+        return null
+      }
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle()
+
+      if (error) {
+        console.error('Error cargando profile:', error)
+        clearProfile()
+        return null
+      }
+
+      if (!data) {
+        clearProfile()
+        return null
+      }
+
+      if (!data.is_active) {
+        clearProfile()
+        await supabase.auth.signOut()
+        setSession(null)
+        return null
+      }
+
+      localStorage.setItem(PROFILE_CACHE, JSON.stringify(data))
+      setProfile(data)
+
+      supabase
+        .from('profiles')
+        .update({ last_seen_at: new Date().toISOString() })
+        .eq('id', userId)
+        .then(({ error }) => {
+          if (error) console.warn('No se pudo actualizar last_seen_at:', error)
+        })
+
+      return data
+    } catch (err) {
+      console.error('Crash en loadProfile:', err)
+      clearProfile()
+      return null
+    }
+  }, [clearProfile])
+
   useEffect(() => {
-    const hasCache = !!readCache()
+    let mounted = true
 
-    // Safety valve: never block the UI more than 12 seconds
-    const failsafe = hasCache ? null : setTimeout(() => setLoading(false), 12000)
+    const initAuth = async () => {
+      try {
+        setLoading(true)
 
-    supabase.auth.getSession()
-      .then(async ({ data: { session } }) => {
-        setSession(session)
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession()
 
-        if (!session) {
-          // Logged out — clear any stale cache
-          setProfile(null)
-          localStorage.removeItem(PROFILE_CACHE)
+        if (!mounted) return
+
+        if (error) {
+          console.error('Error getSession:', error)
+          setSession(null)
+          clearProfile()
           return
         }
 
-        // If cache exists, make sure it belongs to THIS user
+        setSession(session)
+
+        if (!session) {
+          clearProfile()
+          return
+        }
+
         const cached = readCache()
+
         if (cached && cached.id !== session.user.id) {
-          setProfile(null)
-          localStorage.removeItem(PROFILE_CACHE)
+          clearProfile()
         }
 
-        if (hasCache) {
-          // Cache is valid — refresh DB in background, don't block UI
-          loadProfile(session.user.id).catch(console.error)
-        } else {
-          // No cache — must fetch before releasing loading state
-          await loadProfile(session.user.id).catch((err) => {
-            console.error('loadProfile error:', err)
-          })
+        const loadedProfile = await loadProfile(session.user.id)
+
+        if (!mounted) return
+
+        if (!loadedProfile) {
+          clearProfile()
         }
-      })
-      .catch((error) => {
-        console.error('Auth init error:', error)
+      } catch (err) {
+        console.error('Auth init error:', err)
+        if (!mounted) return
         setSession(null)
-        setProfile(null)
-        localStorage.removeItem(PROFILE_CACHE)
-        supabase.auth.signOut().catch(() => {})
-      })
-      .finally(() => {
-        if (failsafe) clearTimeout(failsafe)
-        setLoading(false)
-      })
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        // INITIAL_SESSION is handled by getSession() above — skip to avoid double load
-        if (_event === 'INITIAL_SESSION') return
-        try {
-          setSession(session)
-          if (session) {
-            // TOKEN_REFRESHED: JWT rotated but profile hasn't changed, no DB round-trip needed
-            if (_event !== 'TOKEN_REFRESHED') {
-              await loadProfile(session.user.id)
-            }
-          } else {
-            setProfile(null)
-            localStorage.removeItem(PROFILE_CACHE)
-          }
-        } catch (error) {
-          console.error('Auth state error:', error)
-          supabase.auth.signOut().catch(() => {})
-          setSession(null)
-          setProfile(null)
-          localStorage.removeItem(PROFILE_CACHE)
+        clearProfile()
+      } finally {
+        if (mounted) {
+          setLoading(false)
         }
       }
-    )
+    }
 
-    return () => subscription.unsubscribe()
-  }, [loadProfile])
+    initAuth()
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      if (event === 'INITIAL_SESSION') return
+
+      try {
+        setLoading(true)
+        setSession(newSession)
+
+        if (!newSession) {
+          clearProfile()
+          return
+        }
+
+        if (event === 'TOKEN_REFRESHED') {
+          setLoading(false)
+          return
+        }
+
+        const loadedProfile = await loadProfile(newSession.user.id)
+
+        if (!loadedProfile) {
+          clearProfile()
+        }
+      } catch (err) {
+        console.error('Auth state error:', err)
+        setSession(null)
+        clearProfile()
+      } finally {
+        setLoading(false)
+      }
+    })
+
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
+  }, [loadProfile, clearProfile])
 
   const login = async (email, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
     if (error) throw error
+
+    if (data?.session?.user?.id) {
+      setSession(data.session)
+      await loadProfile(data.session.user.id)
+    }
+
     return data
   }
 
@@ -134,32 +190,63 @@ export function AuthProvider({ children }) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: fullName, company_name: companyName } },
+      options: {
+        data: {
+          full_name: fullName,
+          company_name: companyName,
+        },
+      },
     })
+
     if (error) throw error
+
+    if (data?.session?.user?.id) {
+      setSession(data.session)
+      await loadProfile(data.session.user.id)
+    }
+
     return data
   }
 
   const logout = async () => {
-    const sid = sessionStorage.getItem('fuel.sess')
-    if (sid) {
-      supabase.from('user_sessions').update({ ended_at: new Date().toISOString() }).eq('id', sid).then(() => {})
+    try {
+      const sid = sessionStorage.getItem('fuel.sess')
+
+      if (sid) {
+        supabase
+          .from('user_sessions')
+          .update({ ended_at: new Date().toISOString() })
+          .eq('id', sid)
+          .then(() => {})
+      }
+
       sessionStorage.removeItem('fuel.sess')
+      clearProfile()
+      setSession(null)
+
+      await supabase.auth.signOut()
+    } catch (err) {
+      console.error('Logout error:', err)
+      clearProfile()
+      setSession(null)
     }
-    localStorage.removeItem(PROFILE_CACHE)
-    await supabase.auth.signOut()
-    setProfile(null)
-    setSession(null)
   }
 
   const isAdmin = profile?.role === 'admin'
 
   return (
-    <AuthContext.Provider value={{
-      session, profile, loading,
-      login, register, logout,
-      isAdmin, loadProfile,
-    }}>
+    <AuthContext.Provider
+      value={{
+        session,
+        profile,
+        loading,
+        login,
+        register,
+        logout,
+        isAdmin,
+        loadProfile,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )
