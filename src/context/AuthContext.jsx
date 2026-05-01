@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import { supabase } from '../lib/supabase.js'
 
 const AuthContext = createContext(null)
+const PROFILE_CACHE = 'fuel.profile'
 
 export function AuthProvider({ children }) {
   const [session, setSession]   = useState(null)
@@ -18,7 +19,7 @@ export function AuthProvider({ children }) {
   }
 
   const loadProfile = useCallback(async (userId) => {
-    let { data, error } = await supabase
+    const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
@@ -27,42 +28,22 @@ export function AuthProvider({ children }) {
     if (error) throw error
 
     if (!data) {
-      const { data: userData, error: userError } = await supabase.auth.getUser()
-      if (userError) throw userError
-
-      const user = userData.user
-      const metadata = user?.user_metadata || {}
-      const { data: createdProfile, error: insertError } = await supabase
-        .from('profiles')
-        .insert({
-          id: userId,
-          email: user?.email || '',
-          full_name: metadata.full_name || '',
-          company_name: metadata.company_name || '',
-          role: 'user',
-          is_active: true,
-        })
-        .select('*')
-        .single()
-
-      if (insertError) throw insertError
-      data = createdProfile
+      setProfile(null)
+      localStorage.removeItem(PROFILE_CACHE)
+      return null
     }
 
     if (!data.is_active) {
+      localStorage.removeItem(PROFILE_CACHE)
       await supabase.auth.signOut()
       setProfile(null)
       setSession(null)
       return null
     }
 
+    localStorage.setItem(PROFILE_CACHE, JSON.stringify(data))
     setProfile(data)
-    supabase
-      .from('profiles')
-      .update({ last_seen_at: new Date().toISOString() })
-      .eq('id', userId)
-      .then(() => {})
-
+    supabase.from('profiles').update({ last_seen_at: new Date().toISOString() }).eq('id', userId).then(() => {})
     return data
   }, [])
 
@@ -71,9 +52,17 @@ export function AuthProvider({ children }) {
       .then(({ data: { session } }) => {
         setSession(session)
         if (session) {
-          return loadProfile(session.user.id)
+          // Mostrar perfil cacheado de inmediato (sin esperar la red)
+          const cached = localStorage.getItem(PROFILE_CACHE)
+          if (cached) {
+            try {
+              const parsed = JSON.parse(cached)
+              if (parsed.id === session.user.id) setProfile(parsed)
+            } catch {}
+          }
+          // Refrescar en segundo plano
+          loadProfile(session.user.id).catch(console.error)
         }
-        return null
       })
       .catch(async (error) => {
         console.error('Auth init error:', error)
@@ -125,6 +114,7 @@ export function AuthProvider({ children }) {
   }
 
   const logout = async () => {
+    localStorage.removeItem(PROFILE_CACHE)
     await supabase.auth.signOut()
     setProfile(null)
     setSession(null)
