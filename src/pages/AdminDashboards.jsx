@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase.js'
 import { useLang } from '../context/LanguageContext.jsx'
 
 const emptyForm = { name: '', embed_url: '', description: '' }
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 function withTimeout(promise, label = 'Operacion', ms = 12000) {
   return Promise.race([
@@ -12,6 +14,56 @@ function withTimeout(promise, label = 'Operacion', ms = 12000) {
       setTimeout(() => reject(new Error(`${label} demoro demasiado. Revisa conexion o permisos de Supabase.`)), ms)
     }),
   ])
+}
+
+async function callAdminRpc(functionName, body, label) {
+  const { data: sessionData, error: sessionError } = await withTimeout(
+    supabase.auth.getSession(),
+    'Obtener sesion',
+    5000
+  )
+  if (sessionError) throw sessionError
+  if (!sessionData.session?.access_token) {
+    throw new Error('No hay sesion activa. Cerra sesion y volve a ingresar.')
+  }
+
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 12000)
+
+  try {
+    const response = await fetch(`${supabaseUrl}/rest/v1/rpc/${functionName}`, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        apikey: supabaseAnonKey,
+        Authorization: `Bearer ${sessionData.session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    })
+
+    const text = await response.text()
+    let payload = null
+    try {
+      payload = text ? JSON.parse(text) : null
+    } catch {
+      payload = text
+    }
+
+    if (!response.ok) {
+      const message = payload?.message || payload?.error || text || response.statusText
+      throw new Error(`${label} fallo (HTTP ${response.status}): ${message}`)
+    }
+
+    return payload
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error(`${label} demoro demasiado. Revisa conexion, URL de Supabase o funciones RPC.`)
+    }
+    throw error
+  } finally {
+    clearTimeout(timeout)
+  }
 }
 
 function extractEmbedUrl(raw) {
@@ -105,34 +157,20 @@ export default function AdminDashboards() {
         description: form.description.trim(),
       }
 
-      let error
       if (editing.id) {
-        ({ error } = await withTimeout(
-          supabase
-            .rpc('admin_upsert_dashboard', {
-              board_id: editing.id,
-              board_name: payload.name,
-              board_embed_url: payload.embed_url,
-              board_description: payload.description,
-            }),
-          'Actualizar tablero'
-        ))
+        await callAdminRpc('admin_upsert_dashboard', {
+          board_id: editing.id,
+          board_name: payload.name,
+          board_embed_url: payload.embed_url,
+          board_description: payload.description,
+        }, 'Actualizar tablero')
       } else {
-        ({ error } = await withTimeout(
-          supabase
-            .rpc('admin_upsert_dashboard', {
-              board_id: null,
-              board_name: payload.name,
-              board_embed_url: payload.embed_url,
-              board_description: payload.description,
-            }),
-          'Crear tablero'
-        ))
-      }
-
-      if (error) {
-        setFormError(`${error.message}${error.details ? ` - ${error.details}` : ''}`)
-        return
+        await callAdminRpc('admin_upsert_dashboard', {
+          board_id: null,
+          board_name: payload.name,
+          board_embed_url: payload.embed_url,
+          board_description: payload.description,
+        }, 'Crear tablero')
       }
 
       setEditing(null)
@@ -148,14 +186,7 @@ export default function AdminDashboards() {
   const remove = async (id) => {
     if (!window.confirm(t('common.confirm_delete'))) return
     try {
-      const { error } = await withTimeout(
-        supabase.rpc('admin_delete_dashboard', { board_id: id }),
-        'Eliminar tablero'
-      )
-      if (error) {
-        setFormError(error.message)
-        return
-      }
+      await callAdminRpc('admin_delete_dashboard', { board_id: id }, 'Eliminar tablero')
       load()
     } catch (error) {
       setFormError(error.message || 'Error eliminando tablero')
