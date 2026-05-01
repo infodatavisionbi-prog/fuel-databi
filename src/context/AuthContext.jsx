@@ -14,17 +14,8 @@ function readCache() {
   }
 }
 
-function withTimeout(promise, ms = 6000) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Timeout Supabase')), ms)
-    ),
-  ])
-}
-
 export function AuthProvider({ children }) {
-  const [profile, setProfile] = useState(null)
+  const [profile, setProfile] = useState(readCache())
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
 
@@ -35,16 +26,18 @@ export function AuthProvider({ children }) {
 
   const loadProfile = useCallback(async (userId) => {
     try {
+      if (!userId) {
+        clearProfile()
+        return null
+      }
+
       console.log('Cargando profile:', userId)
 
-      const { data, error } = await withTimeout(
-        supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', userId)
-          .maybeSingle(),
-        6000
-      )
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle()
 
       if (error) {
         console.error('Profile error:', error)
@@ -61,15 +54,15 @@ export function AuthProvider({ children }) {
       if (!data.is_active) {
         console.warn('Usuario inactivo')
         clearProfile()
-        await supabase.auth.signOut()
         setSession(null)
+        await supabase.auth.signOut()
         return null
       }
 
       localStorage.setItem(PROFILE_CACHE, JSON.stringify(data))
       setProfile(data)
 
-      // No bloquea nada
+      // No bloquea la carga
       supabase
         .from('profiles')
         .update({ last_seen_at: new Date().toISOString() })
@@ -80,7 +73,7 @@ export function AuthProvider({ children }) {
 
       return data
     } catch (err) {
-      console.error('loadProfile timeout/crash:', err)
+      console.error('loadProfile crash:', err)
       clearProfile()
       return null
     }
@@ -93,10 +86,7 @@ export function AuthProvider({ children }) {
       try {
         console.log('Init auth...')
 
-        const { data, error } = await withTimeout(
-          supabase.auth.getSession(),
-          6000
-        )
+        const { data, error } = await supabase.auth.getSession()
 
         if (!alive) return
 
@@ -115,9 +105,13 @@ export function AuthProvider({ children }) {
           return
         }
 
-        await loadProfile(currentSession.user.id)
+        const loadedProfile = await loadProfile(currentSession.user.id)
+
+        if (!loadedProfile) {
+          console.warn('No se pudo cargar profile')
+        }
       } catch (err) {
-        console.error('initAuth timeout/crash:', err)
+        console.error('initAuth crash:', err)
         if (!alive) return
         setSession(null)
         clearProfile()
@@ -136,19 +130,27 @@ export function AuthProvider({ children }) {
 
       if (event === 'INITIAL_SESSION') return
 
-      setSession(newSession)
+      try {
+        setLoading(true)
+        setSession(newSession)
 
-      if (!newSession) {
-        clearProfile()
-        setLoading(false)
-        return
-      }
+        if (!newSession) {
+          clearProfile()
+          return
+        }
 
-      if (event === 'SIGNED_IN') {
+        if (event === 'TOKEN_REFRESHED') {
+          return
+        }
+
         await loadProfile(newSession.user.id)
+      } catch (err) {
+        console.error('Auth state crash:', err)
+        setSession(null)
+        clearProfile()
+      } finally {
+        setLoading(false)
       }
-
-      setLoading(false)
     })
 
     return () => {
@@ -161,10 +163,10 @@ export function AuthProvider({ children }) {
     setLoading(true)
 
     try {
-      const { data, error } = await withTimeout(
-        supabase.auth.signInWithPassword({ email, password }),
-        6000
-      )
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
 
       if (error) throw error
 
@@ -184,19 +186,16 @@ export function AuthProvider({ children }) {
     setLoading(true)
 
     try {
-      const { data, error } = await withTimeout(
-        supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              full_name: fullName,
-              company_name: companyName,
-            },
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+            company_name: companyName,
           },
-        }),
-        6000
-      )
+        },
+      })
 
       if (error) throw error
 
