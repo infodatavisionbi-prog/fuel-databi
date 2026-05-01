@@ -24,6 +24,8 @@ export function AuthProvider({ children }) {
       .eq('id', userId)
       .maybeSingle()
 
+    console.log('[loadProfile]', { userId, data, error })
+
     if (error) throw error
 
     if (!data) {
