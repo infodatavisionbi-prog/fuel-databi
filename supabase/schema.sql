@@ -176,6 +176,97 @@ create trigger on_auth_user_created
 after insert on auth.users
 for each row execute function public.handle_new_user();
 
+create extension if not exists pgcrypto with schema extensions;
+
+create or replace function public.admin_create_user(
+  user_email text,
+  user_password text,
+  user_fullname text,
+  user_company text
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public, auth, extensions
+as $$
+declare
+  new_user_id uuid := gen_random_uuid();
+  normalized_email text := lower(trim(user_email));
+begin
+  if not public.is_admin() then
+    raise exception 'Solo un administrador puede crear usuarios';
+  end if;
+
+  if normalized_email = '' or user_password = '' then
+    raise exception 'Email y contrasena son obligatorios';
+  end if;
+
+  if exists (select 1 from auth.users where email = normalized_email) then
+    raise exception 'Ya existe un usuario con ese email';
+  end if;
+
+  insert into auth.users (
+    id,
+    instance_id,
+    aud,
+    role,
+    email,
+    encrypted_password,
+    email_confirmed_at,
+    raw_app_meta_data,
+    raw_user_meta_data,
+    created_at,
+    updated_at
+  )
+  values (
+    new_user_id,
+    '00000000-0000-0000-0000-000000000000',
+    'authenticated',
+    'authenticated',
+    normalized_email,
+    crypt(user_password, gen_salt('bf')),
+    now(),
+    '{"provider":"email","providers":["email"]}'::jsonb,
+    jsonb_build_object('full_name', user_fullname, 'company_name', user_company),
+    now(),
+    now()
+  );
+
+  insert into auth.identities (
+    id,
+    user_id,
+    provider_id,
+    identity_data,
+    provider,
+    last_sign_in_at,
+    created_at,
+    updated_at
+  )
+  values (
+    new_user_id::text,
+    new_user_id,
+    new_user_id::text,
+    jsonb_build_object('sub', new_user_id::text, 'email', normalized_email),
+    'email',
+    now(),
+    now(),
+    now()
+  );
+
+  insert into public.profiles (id, email, full_name, company_name, role, is_active)
+  values (new_user_id, normalized_email, user_fullname, user_company, 'user', true)
+  on conflict (id) do update
+    set email = excluded.email,
+        full_name = excluded.full_name,
+        company_name = excluded.company_name,
+        is_active = true;
+
+  return new_user_id;
+end;
+$$;
+
+grant execute on function public.admin_create_user(text, text, text, text) to authenticated;
+
 create or replace function public.admin_upsert_dashboard(
   board_id uuid,
   board_name text,

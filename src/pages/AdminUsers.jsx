@@ -12,6 +12,15 @@ function formatDate(value, fallback) {
 
 const emptyNewUser = { email: '', password: '', full_name: '', company_name: '' }
 
+function withTimeout(promise, label = 'Operacion', ms = 15000) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(`${label} demoro demasiado. Revisa Supabase.`)), ms)
+    }),
+  ])
+}
+
 export default function AdminUsers() {
   const { t } = useLang()
   const [users, setUsers]             = useState([])
@@ -100,17 +109,22 @@ export default function AdminUsers() {
     if (!company_name.trim()) { setCreateError('La empresa es obligatoria'); return }
 
     setCreating(true)
-    const { error } = await supabase.rpc('admin_create_user', {
-      user_email:    email.trim(),
-      user_password: password,
-      user_fullname: full_name.trim(),
-      user_company:  company_name.trim(),
-    })
-    setCreating(false)
-
-    if (error) {
+    try {
+      const { error } = await withTimeout(
+        supabase.rpc('admin_create_user', {
+          user_email: email.trim(),
+          user_password: password,
+          user_fullname: full_name.trim(),
+          user_company: company_name.trim(),
+        }),
+        'Crear usuario'
+      )
+      if (error) throw error
+    } catch (error) {
       setCreateError(error.message || 'Error al crear el usuario')
       return
+    } finally {
+      setCreating(false)
     }
 
     setShowNewUser(false)
