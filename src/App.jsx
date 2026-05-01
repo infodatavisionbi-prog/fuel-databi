@@ -15,37 +15,21 @@ class ErrorBoundary extends Component {
   render() {
     if (this.state.error) {
       return (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: '#f0f9ff',
-            fontFamily: 'Inter, sans-serif',
-          }}
-        >
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: '#f0f9ff',
+          fontFamily: 'Inter, sans-serif',
+        }}>
           <div style={{ maxWidth: 480, padding: 32, textAlign: 'center' }}>
-            <div
-              style={{
-                fontSize: 15,
-                fontWeight: 600,
-                marginBottom: 8,
-                color: '#0f172a',
-              }}
-            >
+            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 8, color: '#0f172a' }}>
               Error al cargar la aplicación
             </div>
 
-            <div
-              style={{
-                fontSize: 12,
-                color: '#64748b',
-                marginBottom: 20,
-                wordBreak: 'break-all',
-              }}
-            >
+            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 20, wordBreak: 'break-all' }}>
               {this.state.error.message}
             </div>
 
@@ -93,7 +77,7 @@ function LoadingScreen() {
 }
 
 function AppGate() {
-  const { session, profile, loading, logout } = useAuth()
+  const { session, profile, loading } = useAuth()
 
   if (loading) {
     return <LoadingScreen />
@@ -101,11 +85,6 @@ function AppGate() {
 
   if (session && profile) {
     return <Layout />
-  }
-
-  if (session && !profile) {
-    logout()
-    return <AuthScreen />
   }
 
   return <AuthScreen />
