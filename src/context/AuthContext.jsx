@@ -14,10 +14,17 @@ function readCache() {
   }
 }
 
-export function AuthProvider({ children }) {
-  const cachedProfile = readCache()
+function withTimeout(promise, ms = 6000) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Timeout Supabase')), ms)
+    ),
+  ])
+}
 
-  const [profile, setProfile] = useState(cachedProfile)
+export function AuthProvider({ children }) {
+  const [profile, setProfile] = useState(null)
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
 
@@ -28,99 +35,95 @@ export function AuthProvider({ children }) {
 
   const loadProfile = useCallback(async (userId) => {
     try {
-      if (!userId) {
-        clearProfile()
-        return null
-      }
+      console.log('Cargando profile:', userId)
 
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle()
+      const { data, error } = await withTimeout(
+        supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle(),
+        6000
+      )
 
       if (error) {
-        console.error('Error cargando profile:', error)
+        console.error('Profile error:', error)
         clearProfile()
         return null
       }
 
       if (!data) {
+        console.warn('Profile no encontrado')
         clearProfile()
         return null
       }
 
       if (!data.is_active) {
+        console.warn('Usuario inactivo')
         clearProfile()
-        setSession(null)
         await supabase.auth.signOut()
+        setSession(null)
         return null
       }
 
       localStorage.setItem(PROFILE_CACHE, JSON.stringify(data))
       setProfile(data)
 
-      // No bloquea la carga de la app
+      // No bloquea nada
       supabase
         .from('profiles')
         .update({ last_seen_at: new Date().toISOString() })
         .eq('id', userId)
         .then(({ error }) => {
-          if (error) {
-            console.warn('No se pudo actualizar last_seen_at:', error)
-          }
+          if (error) console.warn('last_seen_at error:', error)
         })
 
       return data
     } catch (err) {
-      console.error('Crash loadProfile:', err)
+      console.error('loadProfile timeout/crash:', err)
       clearProfile()
       return null
     }
   }, [clearProfile])
 
   useEffect(() => {
-    let mounted = true
+    let alive = true
 
-    const initAuth = async () => {
+    async function initAuth() {
       try {
-        setLoading(true)
+        console.log('Init auth...')
 
-        const {
-          data: { session },
-          error,
-        } = await supabase.auth.getSession()
+        const { data, error } = await withTimeout(
+          supabase.auth.getSession(),
+          6000
+        )
 
-        if (!mounted) return
+        if (!alive) return
 
         if (error) {
-          console.error('Error getSession:', error)
+          console.error('getSession error:', error)
           setSession(null)
           clearProfile()
           return
         }
 
-        setSession(session)
+        const currentSession = data?.session ?? null
+        setSession(currentSession)
 
-        if (!session) {
+        if (!currentSession) {
           clearProfile()
           return
         }
 
-        const cached = readCache()
-
-        if (cached && cached.id !== session.user.id) {
-          clearProfile()
-        }
-
-        await loadProfile(session.user.id)
+        await loadProfile(currentSession.user.id)
       } catch (err) {
-        console.error('Auth init error:', err)
-        if (!mounted) return
+        console.error('initAuth timeout/crash:', err)
+        if (!alive) return
         setSession(null)
         clearProfile()
       } finally {
-        if (mounted) {
+        if (alive) {
+          console.log('Auth loading false')
           setLoading(false)
         }
       }
@@ -128,100 +131,91 @@ export function AuthProvider({ children }) {
 
     initAuth()
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+    const { data } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      console.log('Auth event:', event)
+
       if (event === 'INITIAL_SESSION') return
 
-      try {
-        setLoading(true)
-        setSession(newSession)
+      setSession(newSession)
 
-        if (!newSession) {
-          clearProfile()
-          return
-        }
-
-        if (event === 'TOKEN_REFRESHED') {
-          return
-        }
-
-        await loadProfile(newSession.user.id)
-      } catch (err) {
-        console.error('Auth state error:', err)
-        setSession(null)
+      if (!newSession) {
         clearProfile()
-      } finally {
         setLoading(false)
+        return
       }
+
+      if (event === 'SIGNED_IN') {
+        await loadProfile(newSession.user.id)
+      }
+
+      setLoading(false)
     })
 
     return () => {
-      mounted = false
-      subscription.unsubscribe()
+      alive = false
+      data?.subscription?.unsubscribe()
     }
   }, [loadProfile, clearProfile])
 
   const login = async (email, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    setLoading(true)
 
-    if (error) throw error
+    try {
+      const { data, error } = await withTimeout(
+        supabase.auth.signInWithPassword({ email, password }),
+        6000
+      )
 
-    if (data?.session?.user?.id) {
+      if (error) throw error
+
       setSession(data.session)
-      await loadProfile(data.session.user.id)
-    }
 
-    return data
+      if (data?.session?.user?.id) {
+        await loadProfile(data.session.user.id)
+      }
+
+      return data
+    } finally {
+      setLoading(false)
+    }
   }
 
   const register = async ({ email, password, fullName, companyName }) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-          company_name: companyName,
-        },
-      },
-    })
+    setLoading(true)
 
-    if (error) throw error
+    try {
+      const { data, error } = await withTimeout(
+        supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              full_name: fullName,
+              company_name: companyName,
+            },
+          },
+        }),
+        6000
+      )
 
-    if (data?.session?.user?.id) {
+      if (error) throw error
+
       setSession(data.session)
-      await loadProfile(data.session.user.id)
-    }
 
-    return data
+      if (data?.session?.user?.id) {
+        await loadProfile(data.session.user.id)
+      }
+
+      return data
+    } finally {
+      setLoading(false)
+    }
   }
 
   const logout = async () => {
-    try {
-      const sid = sessionStorage.getItem('fuel.sess')
-
-      if (sid) {
-        supabase
-          .from('user_sessions')
-          .update({ ended_at: new Date().toISOString() })
-          .eq('id', sid)
-          .then(() => {})
-      }
-
-      sessionStorage.removeItem('fuel.sess')
-      clearProfile()
-      setSession(null)
-
-      await supabase.auth.signOut()
-    } catch (err) {
-      console.error('Logout error:', err)
-      clearProfile()
-      setSession(null)
-    }
+    clearProfile()
+    setSession(null)
+    await supabase.auth.signOut()
   }
 
   const isAdmin = profile?.role === 'admin'
