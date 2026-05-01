@@ -67,7 +67,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   useEffect(() => {
-    withTimeout(supabase.auth.getSession())
+    supabase.auth.getSession()
       .then(({ data: { session } }) => {
         setSession(session)
         if (session) {

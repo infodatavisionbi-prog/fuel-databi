@@ -11,7 +11,7 @@ function AppGate() {
     return (
       <div className="auth-screen">
         <div className="loading-panel">
-          <div className="brand-mark">fuel</div>
+          <img src="/logo.png" alt="DataVision" style={{ width: 180, height: 'auto', objectFit: 'contain', marginBottom: 20 }} />
           <div className="spinner" />
         </div>
       </div>
