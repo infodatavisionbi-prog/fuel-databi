@@ -5,6 +5,15 @@ import { useLang } from '../context/LanguageContext.jsx'
 
 const emptyForm = { name: '', embed_url: '', description: '' }
 
+function withTimeout(promise, label = 'Operacion', ms = 12000) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(`${label} demoro demasiado. Revisa conexion o permisos de Supabase.`)), ms)
+    }),
+  ])
+}
+
 function extractEmbedUrl(raw) {
   const trimmed = raw.trim()
   if (!trimmed) return ''
@@ -36,14 +45,22 @@ export default function AdminDashboards() {
 
   const load = async () => {
     setLoading(true)
-    const { data, error } = await supabase
-      .from('dashboards')
-      .select('*, user_dashboards(user_id)')
-      .order('created_at', { ascending: false })
+    try {
+      const { data, error } = await withTimeout(
+        supabase
+          .from('dashboards')
+          .select('*, user_dashboards(user_id)')
+          .order('created_at', { ascending: false }),
+        'Cargar tableros'
+      )
 
-    if (error) setFormError(error.message)
-    setDashboards(data || [])
-    setLoading(false)
+      if (error) setFormError(error.message)
+      setDashboards(data || [])
+    } catch (error) {
+      setFormError(error.message || 'Error cargando tableros')
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { load() }, [])
@@ -82,9 +99,6 @@ export default function AdminDashboards() {
 
     setSaving(true)
     try {
-      const { data: userData, error: userError } = await supabase.auth.getUser()
-      if (userError) throw userError
-
       const payload = {
         name,
         embed_url: embedUrl,
@@ -93,18 +107,20 @@ export default function AdminDashboards() {
 
       let error
       if (editing.id) {
-        ({ error } = await supabase
-          .from('dashboards')
-          .update(payload)
-          .eq('id', editing.id)
-          .select('id')
-          .single())
+        ({ error } = await withTimeout(
+          supabase
+            .from('dashboards')
+            .update(payload)
+            .eq('id', editing.id),
+          'Actualizar tablero'
+        ))
       } else {
-        ({ error } = await supabase
-          .from('dashboards')
-          .insert({ ...payload, created_by: userData.user?.id })
-          .select('id')
-          .single())
+        ({ error } = await withTimeout(
+          supabase
+            .from('dashboards')
+            .insert(payload),
+          'Crear tablero'
+        ))
       }
 
       if (error) {
@@ -124,12 +140,19 @@ export default function AdminDashboards() {
 
   const remove = async (id) => {
     if (!window.confirm(t('common.confirm_delete'))) return
-    const { error } = await supabase.from('dashboards').delete().eq('id', id)
-    if (error) {
-      setFormError(error.message)
-      return
+    try {
+      const { error } = await withTimeout(
+        supabase.from('dashboards').delete().eq('id', id),
+        'Eliminar tablero'
+      )
+      if (error) {
+        setFormError(error.message)
+        return
+      }
+      load()
+    } catch (error) {
+      setFormError(error.message || 'Error eliminando tablero')
     }
-    load()
   }
 
   return (
