@@ -4,75 +4,12 @@ import { supabase } from '../lib/supabase.js'
 import { useLang } from '../context/LanguageContext.jsx'
 
 const emptyForm = { name: '', embed_url: '', description: '' }
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-
-function withTimeout(promise, label = 'Operacion', ms = 12000) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => {
-      setTimeout(() => reject(new Error(`${label} demoro demasiado. Revisa conexion o permisos de Supabase.`)), ms)
-    }),
-  ])
-}
-
-async function callAdminRpc(functionName, body, label) {
-  const { data: sessionData, error: sessionError } = await withTimeout(
-    supabase.auth.getSession(),
-    'Obtener sesion',
-    5000
-  )
-  if (sessionError) throw sessionError
-  if (!sessionData.session?.access_token) {
-    throw new Error('No hay sesion activa. Cerra sesion y volve a ingresar.')
-  }
-
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 12000)
-
-  try {
-    const response = await fetch(`${supabaseUrl}/rest/v1/rpc/${functionName}`, {
-      method: 'POST',
-      signal: controller.signal,
-      headers: {
-        apikey: supabaseAnonKey,
-        Authorization: `Bearer ${sessionData.session.access_token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    })
-
-    const text = await response.text()
-    let payload = null
-    try {
-      payload = text ? JSON.parse(text) : null
-    } catch {
-      payload = text
-    }
-
-    if (!response.ok) {
-      const message = payload?.message || payload?.error || text || response.statusText
-      throw new Error(`${label} fallo (HTTP ${response.status}): ${message}`)
-    }
-
-    return payload
-  } catch (error) {
-    if (error.name === 'AbortError') {
-      throw new Error(`${label} demoro demasiado. Revisa conexion, URL de Supabase o funciones RPC.`)
-    }
-    throw error
-  } finally {
-    clearTimeout(timeout)
-  }
-}
 
 function extractEmbedUrl(raw) {
   const trimmed = raw.trim()
   if (!trimmed) return ''
-
   const match = trimmed.match(/src=["']([^"']+)["']/)
   if (match) return match[1].replace(/&amp;/g, '&').trim()
-
   if (trimmed.startsWith('http')) return trimmed.replace(/&amp;/g, '&')
   return trimmed
 }
@@ -89,30 +26,20 @@ function isValidPowerBiUrl(url) {
 export default function AdminDashboards() {
   const { t } = useLang()
   const [dashboards, setDashboards] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [editing, setEditing] = useState(null)
-  const [form, setForm] = useState(emptyForm)
-  const [formError, setFormError] = useState('')
+  const [loading, setLoading]       = useState(true)
+  const [saving, setSaving]         = useState(false)
+  const [editing, setEditing]       = useState(null)
+  const [form, setForm]             = useState(emptyForm)
+  const [formError, setFormError]   = useState('')
 
   const load = async () => {
     setLoading(true)
-    try {
-      const { data, error } = await withTimeout(
-        supabase
-          .from('dashboards')
-          .select('*, user_dashboards(user_id)')
-          .order('created_at', { ascending: false }),
-        'Cargar tableros'
-      )
-
-      if (error) setFormError(error.message)
-      setDashboards(data || [])
-    } catch (error) {
-      setFormError(error.message || 'Error cargando tableros')
-    } finally {
-      setLoading(false)
-    }
+    const { data } = await supabase
+      .from('dashboards')
+      .select('*, user_dashboards(user_id)')
+      .order('created_at', { ascending: false })
+    setDashboards(data || [])
+    setLoading(false)
   }
 
   useEffect(() => { load() }, [])
@@ -126,8 +53,8 @@ export default function AdminDashboards() {
   const openEdit = (board) => {
     setEditing(board)
     setForm({
-      name: board.name || '',
-      embed_url: board.embed_url || '',
+      name:        board.name || '',
+      embed_url:   board.embed_url || '',
       description: board.description || '',
     })
     setFormError('')
@@ -139,58 +66,46 @@ export default function AdminDashboards() {
 
   const save = async () => {
     setFormError('')
-    const name = form.name.trim()
+    const name     = form.name.trim()
     const embedUrl = form.embed_url.trim()
 
-    if (!name) { setFormError('El nombre es obligatorio'); return }
+    if (!name)     { setFormError('El nombre es obligatorio'); return }
     if (!embedUrl) { setFormError('La URL de Power BI es obligatoria'); return }
     if (!isValidPowerBiUrl(embedUrl)) {
-      setFormError('Pega una URL valida de Power BI, por ejemplo https://app.powerbi.com/view?r=...')
+      setFormError('Pega una URL válida de Power BI (https://app.powerbi.com/...)')
       return
     }
 
     setSaving(true)
-    try {
-      const payload = {
-        name,
-        embed_url: embedUrl,
-        description: form.description.trim(),
-      }
-
-      if (editing.id) {
-        await callAdminRpc('admin_upsert_dashboard', {
-          board_id: editing.id,
-          board_name: payload.name,
-          board_embed_url: payload.embed_url,
-          board_description: payload.description,
-        }, 'Actualizar tablero')
-      } else {
-        await callAdminRpc('admin_upsert_dashboard', {
-          board_id: null,
-          board_name: payload.name,
-          board_embed_url: payload.embed_url,
-          board_description: payload.description,
-        }, 'Crear tablero')
-      }
-
-      setEditing(null)
-      setForm(emptyForm)
-      load()
-    } catch (error) {
-      setFormError(error.message || 'Error al guardar el tablero')
-    } finally {
-      setSaving(false)
+    const payload = {
+      name:        name,
+      embed_url:   embedUrl,
+      description: form.description.trim() || null,
     }
+
+    let error
+    if (editing.id) {
+      ({ error } = await supabase.from('dashboards').update(payload).eq('id', editing.id))
+    } else {
+      ({ error } = await supabase.from('dashboards').insert(payload))
+    }
+
+    setSaving(false)
+
+    if (error) {
+      setFormError(error.message || 'Error al guardar')
+      return
+    }
+
+    setEditing(null)
+    setForm(emptyForm)
+    load()
   }
 
   const remove = async (id) => {
     if (!window.confirm(t('common.confirm_delete'))) return
-    try {
-      await callAdminRpc('admin_delete_dashboard', { board_id: id }, 'Eliminar tablero')
-      load()
-    } catch (error) {
-      setFormError(error.message || 'Error eliminando tablero')
-    }
+    await supabase.from('dashboards').delete().eq('id', id)
+    load()
   }
 
   return (
@@ -205,10 +120,6 @@ export default function AdminDashboards() {
           {t('admin.boards.new')}
         </button>
       </div>
-
-      {formError && !editing && (
-        <div className="form-error visible admin-inline-error">{formError}</div>
-      )}
 
       <div className="boards-grid">
         {loading ? (
@@ -229,12 +140,10 @@ export default function AdminDashboards() {
             <div className="board-url">{board.embed_url}</div>
             <div className="row-actions">
               <button className="btn btn-secondary btn-sm" onClick={() => openEdit(board)}>
-                <Edit3 size={13} />
-                {t('admin.boards.edit')}
+                <Edit3 size={13} /> {t('admin.boards.edit')}
               </button>
               <button className="btn btn-danger btn-sm" onClick={() => remove(board.id)}>
-                <Trash2 size={13} />
-                {t('admin.boards.delete')}
+                <Trash2 size={13} /> {t('admin.boards.delete')}
               </button>
             </div>
           </article>
@@ -248,7 +157,7 @@ export default function AdminDashboards() {
               <div className="modal-title">
                 {editing.id ? t('admin.boards.edit') : t('admin.boards.new')}
               </div>
-              <button className="btn btn-ghost btn-icon" onClick={() => setEditing(null)}>x</button>
+              <button className="btn btn-ghost btn-icon" onClick={() => setEditing(null)}>✕</button>
             </div>
 
             <div className="form-group">
@@ -265,7 +174,7 @@ export default function AdminDashboards() {
               <label className="form-label">
                 {t('admin.boards.embed_url')}
                 <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: 6 }}>
-                  - podes pegar la URL publica o el codigo iframe completo
+                  — podés pegar la URL o el código iframe completo
                 </span>
               </label>
               <textarea
@@ -276,7 +185,7 @@ export default function AdminDashboards() {
               />
               {isValidPowerBiUrl(form.embed_url) && (
                 <div style={{ fontSize: 11, color: 'var(--success)', marginTop: 4 }}>
-                  URL detectada correctamente
+                  ✓ URL detectada correctamente
                 </div>
               )}
             </div>
@@ -303,7 +212,7 @@ export default function AdminDashboards() {
               </button>
               <button className="btn btn-primary" onClick={save} disabled={saving}>
                 {saving ? <span className="spinner" style={{ width: 14, height: 14 }} /> : null}
-                {saving ? 'Guardando...' : t('admin.boards.save')}
+                {t('admin.boards.save')}
               </button>
             </div>
           </div>
