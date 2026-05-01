@@ -60,8 +60,8 @@ export default function AdminDashboards() {
 
     if (!name)     { setFormError('El nombre es obligatorio'); return }
     if (!embedUrl) { setFormError('La URL de Power BI es obligatoria'); return }
-    if (!isValidPowerBiUrl(embedUrl)) {
-      setFormError('Pega una URL válida de Power BI (https://app.powerbi.com/...)')
+    if (!embedUrl.startsWith('https://')) {
+      setFormError('La URL debe comenzar con https://')
       return
     }
 
