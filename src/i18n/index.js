@@ -62,7 +62,7 @@ export const translations = {
     'admin.boards.subtitle':    'Gestión de paneles de Power BI',
     'admin.boards.new':         'Nuevo tablero',
     'admin.boards.name':        'Nombre',
-    'admin.boards.embed_url':   'URL de embed',
+    'admin.boards.embed_url':   'URL de Power BI',
     'admin.boards.description': 'Descripción',
     'admin.boards.assigned':    'Usuarios asignados',
     'admin.boards.created':     'Creado',
@@ -73,7 +73,7 @@ export const translations = {
     'admin.boards.edit':        'Editar',
     'admin.boards.assign':      'Asignar a usuario',
     'admin.boards.empty':       'No hay tableros creados',
-    'admin.boards.url_hint':    'Pegá el link de embed de Power BI',
+    'admin.boards.url_hint':    'Pega el link publico o iframe de Power BI',
     'admin.boards.name_placeholder': 'Ej: Ventas Q1 2026',
     'admin.boards.desc_placeholder': 'Descripción opcional del panel',
 

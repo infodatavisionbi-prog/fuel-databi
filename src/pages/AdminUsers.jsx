@@ -18,6 +18,7 @@ export default function AdminUsers() {
   const [loading, setLoading] = useState(true)
   const [selectedUser, setSelectedUser] = useState(null)
   const [boardToAssign, setBoardToAssign] = useState('')
+  const [error, setError] = useState('')
 
   const load = async () => {
     setLoading(true)
@@ -45,26 +46,34 @@ export default function AdminUsers() {
   }, [boards, selectedAssignments])
 
   const toggleActive = async (user) => {
-    await supabase.from('profiles').update({ is_active: !user.is_active }).eq('id', user.id)
+    setError('')
+    const { error } = await supabase.from('profiles').update({ is_active: !user.is_active }).eq('id', user.id)
+    if (error) { setError(error.message); return }
     load()
   }
 
   const assignBoard = async () => {
     if (!selectedUser || !boardToAssign) return
-    await supabase.from('user_dashboards').insert({
+    setError('')
+    const { data: userData } = await supabase.auth.getUser()
+    const { error } = await supabase.from('user_dashboards').insert({
       user_id: selectedUser.id,
       dashboard_id: boardToAssign,
+      assigned_by: userData.user?.id,
     })
+    if (error) { setError(error.message); return }
     setBoardToAssign('')
     load()
   }
 
   const removeAssignment = async (dashboardId) => {
-    await supabase
+    setError('')
+    const { error } = await supabase
       .from('user_dashboards')
       .delete()
       .eq('user_id', selectedUser.id)
       .eq('dashboard_id', dashboardId)
+    if (error) { setError(error.message); return }
     load()
   }
 
@@ -79,6 +88,7 @@ export default function AdminUsers() {
       </div>
 
       <div className="card table-card">
+        {error && <div className="form-error visible admin-inline-error">{error}</div>}
         <div className="table-wrap">
           <table>
             <thead>
@@ -154,6 +164,7 @@ export default function AdminUsers() {
               </select>
               <button className="btn btn-primary" onClick={assignBoard}>{t('common.save')}</button>
             </div>
+            {error && <div className="form-error visible" style={{ marginTop: 12 }}>{error}</div>}
             <div className="assigned-list">
               {selectedAssignments.length === 0 ? (
                 <div className="empty-state">{t('admin.user_boards.no_boards')}</div>

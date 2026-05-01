@@ -501,6 +501,7 @@ tbody tr:hover { background: var(--bg-elevated); }
 td { padding: 13px 14px; font-size: 13px; color: var(--text-secondary); vertical-align: middle; }
 
 .table-card { padding: 0; overflow: hidden; }
+.admin-inline-error { display: block; margin: 14px; }
 .table-loading { display: flex; align-items: center; justify-content: center; min-height: 180px; }
 
 /* ══════════════════════════════════════════════════════════

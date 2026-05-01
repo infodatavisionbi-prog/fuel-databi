@@ -18,19 +18,35 @@ export function AuthProvider({ children }) {
   }
 
   const loadProfile = useCallback(async (userId) => {
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
       .maybeSingle()
 
-    console.log('[loadProfile]', { userId, data, error })
-
     if (error) throw error
 
     if (!data) {
-      setProfile(null)
-      return null
+      const { data: userData, error: userError } = await supabase.auth.getUser()
+      if (userError) throw userError
+
+      const user = userData.user
+      const metadata = user?.user_metadata || {}
+      const { data: createdProfile, error: insertError } = await supabase
+        .from('profiles')
+        .insert({
+          id: userId,
+          email: user?.email || '',
+          full_name: metadata.full_name || '',
+          company_name: metadata.company_name || '',
+          role: 'user',
+          is_active: true,
+        })
+        .select('*')
+        .single()
+
+      if (insertError) throw insertError
+      data = createdProfile
     }
 
     if (!data.is_active) {
