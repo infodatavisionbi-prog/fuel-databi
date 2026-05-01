@@ -1,21 +1,20 @@
 -- ════════════════════════════════════════════════════════════
 --  FUEL · DataVision BI  —  Supabase Schema
---  Ejecutar en el SQL Editor de Supabase
+--  Seguro para ejecutar múltiples veces
 -- ════════════════════════════════════════════════════════════
 
--- ── PROFILES ──────────────────────────────────────────────
+-- ── TABLAS ────────────────────────────────────────────────
 create table if not exists public.profiles (
   id            uuid primary key references auth.users on delete cascade,
   email         text,
   full_name     text,
-  company_name  text not null,
+  company_name  text not null default '',
   role          text not null default 'user' check (role in ('user', 'admin')),
   is_active     boolean not null default true,
   created_at    timestamptz not null default now(),
   last_seen_at  timestamptz
 );
 
--- ── DASHBOARDS ────────────────────────────────────────────
 create table if not exists public.dashboards (
   id          uuid primary key default gen_random_uuid(),
   name        text not null,
@@ -25,7 +24,6 @@ create table if not exists public.dashboards (
   created_at  timestamptz not null default now()
 );
 
--- ── USER ↔ DASHBOARD ASSIGNMENTS ─────────────────────────
 create table if not exists public.user_dashboards (
   id           uuid primary key default gen_random_uuid(),
   user_id      uuid not null references auth.users on delete cascade,
@@ -35,14 +33,18 @@ create table if not exists public.user_dashboards (
   unique (user_id, dashboard_id)
 );
 
--- ════════════════════════════════════════════════════════════
---  ROW LEVEL SECURITY
--- ════════════════════════════════════════════════════════════
+-- ── RLS ───────────────────────────────────────────────────
 alter table public.profiles       enable row level security;
 alter table public.dashboards      enable row level security;
 alter table public.user_dashboards enable row level security;
 
 -- ── PROFILES policies ─────────────────────────────────────
+drop policy if exists "profiles: own read"    on public.profiles;
+drop policy if exists "profiles: admin read all" on public.profiles;
+drop policy if exists "profiles: own insert"  on public.profiles;
+drop policy if exists "profiles: own update"  on public.profiles;
+drop policy if exists "profiles: admin update" on public.profiles;
+
 create policy "profiles: own read"
   on public.profiles for select
   using (auth.uid() = id);
@@ -68,6 +70,9 @@ create policy "profiles: admin update"
   );
 
 -- ── DASHBOARDS policies ───────────────────────────────────
+drop policy if exists "dashboards: admin full"         on public.dashboards;
+drop policy if exists "dashboards: user read assigned" on public.dashboards;
+
 create policy "dashboards: admin full"
   on public.dashboards for all
   using (
@@ -84,6 +89,9 @@ create policy "dashboards: user read assigned"
   );
 
 -- ── USER_DASHBOARDS policies ──────────────────────────────
+drop policy if exists "user_dashboards: admin full" on public.user_dashboards;
+drop policy if exists "user_dashboards: own read"   on public.user_dashboards;
+
 create policy "user_dashboards: admin full"
   on public.user_dashboards for all
   using (
@@ -94,14 +102,12 @@ create policy "user_dashboards: own read"
   on public.user_dashboards for select
   using (auth.uid() = user_id);
 
--- ════════════════════════════════════════════════════════════
---  INDICES
--- ════════════════════════════════════════════════════════════
+-- ── ÍNDICES ───────────────────────────────────────────────
 create index if not exists idx_user_dashboards_user  on public.user_dashboards (user_id);
 create index if not exists idx_user_dashboards_board on public.user_dashboards (dashboard_id);
 create index if not exists idx_profiles_role         on public.profiles (role);
 
 -- ════════════════════════════════════════════════════════════
---  PRIMER ADMIN — ejecutar despues del primer registro:
---    update public.profiles set role = 'admin' where email = 'admin@tuempresa.com';
+--  DESPUÉS DE REGISTRARTE EN LA APP, ejecutá esto para ser admin:
+--    update public.profiles set role = 'admin' where email = 'infodatavisionbi@gmail.com';
 -- ════════════════════════════════════════════════════════════
