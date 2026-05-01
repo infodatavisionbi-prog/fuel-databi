@@ -18,16 +18,15 @@ export function AuthProvider({ children }) {
   }
 
   const loadProfile = useCallback(async (userId) => {
-    const { data, error } = await withTimeout(supabase
+    const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
-      .maybeSingle())
+      .maybeSingle()
 
     if (error) throw error
 
     if (!data) {
-      // No profile row — leave session intact, app will show limited state
       setProfile(null)
       return null
     }
