@@ -96,21 +96,14 @@ export function AuthProvider({ children }) {
   }
 
   const register = async ({ email, password, fullName, companyName }) => {
-    const { data, error } = await supabase.auth.signUp({ email, password })
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { full_name: fullName, company_name: companyName },
+      },
+    })
     if (error) throw error
-
-    if (data.user) {
-      const { error: profileError } = await supabase.from('profiles').insert({
-        id:           data.user.id,
-        email,
-        full_name:    fullName,
-        company_name: companyName,
-        role:         'user',
-        is_active:    true,
-      })
-      if (profileError) throw profileError
-    }
-
     return data
   }
 
