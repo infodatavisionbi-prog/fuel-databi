@@ -48,16 +48,22 @@ ALTER TABLE public.company_dashboards ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_sessions      ENABLE ROW LEVEL SECURITY;
 
 -- Companies: admin todo, usuarios leen la propia
+DROP POLICY IF EXISTS "companies_admin"    ON public.companies;
+DROP POLICY IF EXISTS "companies_own_read" ON public.companies;
 CREATE POLICY "companies_admin"    ON public.companies FOR ALL  TO authenticated USING (is_admin()) WITH CHECK (is_admin());
 CREATE POLICY "companies_own_read" ON public.companies FOR SELECT TO authenticated
   USING (id IN (SELECT company_id FROM public.profiles WHERE id = auth.uid()));
 
 -- Company dashboards: admin todo, usuarios leen la empresa propia
+DROP POLICY IF EXISTS "company_boards_admin" ON public.company_dashboards;
+DROP POLICY IF EXISTS "company_boards_read"  ON public.company_dashboards;
 CREATE POLICY "company_boards_admin" ON public.company_dashboards FOR ALL  TO authenticated USING (is_admin()) WITH CHECK (is_admin());
 CREATE POLICY "company_boards_read"  ON public.company_dashboards FOR SELECT TO authenticated
   USING (company_id IN (SELECT company_id FROM public.profiles WHERE id = auth.uid()));
 
 -- User sessions: admin lee todo, usuario gestiona las propias
+DROP POLICY IF EXISTS "sessions_admin" ON public.user_sessions;
+DROP POLICY IF EXISTS "sessions_own"   ON public.user_sessions;
 CREATE POLICY "sessions_admin" ON public.user_sessions FOR SELECT TO authenticated USING (is_admin());
 CREATE POLICY "sessions_own"   ON public.user_sessions FOR ALL    TO authenticated
   USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
