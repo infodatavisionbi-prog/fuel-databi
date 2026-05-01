@@ -562,6 +562,8 @@ td { padding: 13px 14px; font-size: 13px; color: var(--text-secondary); vertical
 .modal-close:hover { background: var(--danger-dim); border-color: rgba(220,38,38,0.3); color: var(--danger); }
 
 .modal-body { padding: 20px 24px; overflow-y: auto; flex: 1; }
+.modal-body-stack { display: flex; flex-direction: column; gap: 14px; }
+.modal-body > .form-group:last-child { margin-bottom: 0; }
 .modal-footer {
   padding: 14px 24px;
   border-top: 1px solid var(--border);
@@ -569,6 +571,28 @@ td { padding: 13px 14px; font-size: 13px; color: var(--text-secondary); vertical
   flex-shrink: 0;
   background: var(--bg-elevated);
 }
+
+.modal .form-label { color: var(--text-secondary); }
+.modal .assign-row { gap: 10px; }
+.modal .assign-row .form-input { flex: 1 1 240px; min-width: 0; }
+.modal .assigned-list { margin-top: 0; }
+.modal .form-error { margin-top: 0; }
+
+[data-theme="dark"] .modal {
+  border-color: rgba(125, 211, 252, 0.14);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.78), 0 0 0 1px rgba(255, 255, 255, 0.03);
+}
+
+[data-theme="dark"] .modal .form-label { color: #aab4c8; }
+[data-theme="dark"] .modal .form-input,
+[data-theme="dark"] .modal .form-select,
+[data-theme="dark"] .modal .form-textarea {
+  background: #202432;
+  border-color: rgba(255, 255, 255, 0.11);
+}
+
+[data-theme="dark"] .modal .form-input::placeholder,
+[data-theme="dark"] .modal .form-textarea::placeholder { color: #596275; }
 
 /* ══════════════════════════════════════════════════════════
    AUTH SCREEN

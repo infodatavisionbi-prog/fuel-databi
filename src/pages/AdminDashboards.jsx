@@ -203,6 +203,7 @@ export default function AdminDashboards() {
               <button className="btn btn-ghost btn-icon" onClick={() => setEditing(null)}>✕</button>
             </div>
 
+            <div className="modal-body">
             <div className="form-group">
               <label className="form-label">{t('admin.boards.name')}</label>
               <input
@@ -244,10 +245,11 @@ export default function AdminDashboards() {
             </div>
 
             {formError && (
-              <div className="form-error visible" style={{ marginBottom: 14 }}>
+              <div className="form-error visible">
                 {formError}
               </div>
             )}
+            </div>
 
             <div className="modal-footer">
               <button className="btn btn-secondary" onClick={() => setEditing(null)}>

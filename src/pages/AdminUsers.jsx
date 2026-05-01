@@ -218,6 +218,7 @@ export default function AdminUsers() {
               <button className="btn btn-ghost btn-icon" onClick={() => setSelectedUser(null)}><X size={16} /></button>
             </div>
 
+            <div className="modal-body modal-body-stack">
             <div className="assign-row">
               <select className="form-input" value={boardToAssign} onChange={e => setBoardToAssign(e.target.value)}>
                 <option value="">{t('admin.user_boards.assign_new')}</option>
@@ -226,7 +227,7 @@ export default function AdminUsers() {
               <button className="btn btn-primary" onClick={assignBoard}>{t('common.save')}</button>
             </div>
 
-            {error && <div className="form-error visible" style={{ marginTop: 12 }}>{error}</div>}
+            {error && <div className="form-error visible">{error}</div>}
 
             <div className="assigned-list">
               {selectedAssignments.length === 0 ? (
@@ -248,6 +249,7 @@ export default function AdminUsers() {
                 </div>
               ))}
             </div>
+            </div>
           </div>
         </div>
       )}
@@ -261,6 +263,7 @@ export default function AdminUsers() {
               <button className="btn btn-ghost btn-icon" onClick={() => setShowNewUser(false)}><X size={16} /></button>
             </div>
 
+            <div className="modal-body">
             <div className="form-group">
               <label className="form-label">Nombre completo</label>
               <input className="form-input" value={newUser.full_name} placeholder="Juan García"
@@ -282,7 +285,8 @@ export default function AdminUsers() {
                 onChange={e => setNewUser(u => ({ ...u, password: e.target.value }))} />
             </div>
 
-            {createError && <div className="form-error visible" style={{ marginBottom: 14 }}>{createError}</div>}
+            {createError && <div className="form-error visible">{createError}</div>}
+            </div>
 
             <div className="modal-footer">
               <button className="btn btn-secondary" onClick={() => setShowNewUser(false)}>Cancelar</button>
