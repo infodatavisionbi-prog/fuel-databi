@@ -22,24 +22,30 @@ export function AuthProvider({ children }) {
       .from('profiles')
       .select('*')
       .eq('id', userId)
-      .single())
+      .maybeSingle())
 
     if (error) throw error
 
-    if (data) {
-      if (!data.is_active) {
-        await supabase.auth.signOut()
-        setProfile(null)
-        setSession(null)
-        return null
-      }
-      setProfile(data)
-      supabase
-        .from('profiles')
-        .update({ last_seen_at: new Date().toISOString() })
-        .eq('id', userId)
-        .then(() => {})
+    if (!data) {
+      // No profile row — leave session intact, app will show limited state
+      setProfile(null)
+      return null
     }
+
+    if (!data.is_active) {
+      await supabase.auth.signOut()
+      setProfile(null)
+      setSession(null)
+      return null
+    }
+
+    setProfile(data)
+    supabase
+      .from('profiles')
+      .update({ last_seen_at: new Date().toISOString() })
+      .eq('id', userId)
+      .then(() => {})
+
     return data
   }, [])
 
