@@ -176,6 +176,64 @@ create trigger on_auth_user_created
 after insert on auth.users
 for each row execute function public.handle_new_user();
 
+create or replace function public.admin_upsert_dashboard(
+  board_id uuid,
+  board_name text,
+  board_embed_url text,
+  board_description text
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  saved_id uuid;
+begin
+  if not public.is_admin() then
+    raise exception 'Solo un administrador puede guardar tableros';
+  end if;
+
+  if board_id is null then
+    insert into public.dashboards (name, embed_url, description, created_by)
+    values (board_name, board_embed_url, nullif(board_description, ''), auth.uid())
+    returning id into saved_id;
+  else
+    update public.dashboards
+    set
+      name = board_name,
+      embed_url = board_embed_url,
+      description = nullif(board_description, '')
+    where id = board_id
+    returning id into saved_id;
+
+    if saved_id is null then
+      raise exception 'Tablero no encontrado';
+    end if;
+  end if;
+
+  return saved_id;
+end;
+$$;
+
+create or replace function public.admin_delete_dashboard(board_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_admin() then
+    raise exception 'Solo un administrador puede eliminar tableros';
+  end if;
+
+  delete from public.dashboards where id = board_id;
+end;
+$$;
+
+grant execute on function public.admin_upsert_dashboard(uuid, text, text, text) to authenticated;
+grant execute on function public.admin_delete_dashboard(uuid) to authenticated;
+
 -- ════════════════════════════════════════════════════════════
 --  DESPUÉS DE REGISTRARTE EN LA APP, ejecutá esto para ser admin:
 --    update public.profiles set role = 'admin' where email = 'infodatavisionbi@gmail.com';

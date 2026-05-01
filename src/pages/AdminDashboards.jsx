@@ -109,16 +109,23 @@ export default function AdminDashboards() {
       if (editing.id) {
         ({ error } = await withTimeout(
           supabase
-            .from('dashboards')
-            .update(payload)
-            .eq('id', editing.id),
+            .rpc('admin_upsert_dashboard', {
+              board_id: editing.id,
+              board_name: payload.name,
+              board_embed_url: payload.embed_url,
+              board_description: payload.description,
+            }),
           'Actualizar tablero'
         ))
       } else {
         ({ error } = await withTimeout(
           supabase
-            .from('dashboards')
-            .insert(payload),
+            .rpc('admin_upsert_dashboard', {
+              board_id: null,
+              board_name: payload.name,
+              board_embed_url: payload.embed_url,
+              board_description: payload.description,
+            }),
           'Crear tablero'
         ))
       }
@@ -142,7 +149,7 @@ export default function AdminDashboards() {
     if (!window.confirm(t('common.confirm_delete'))) return
     try {
       const { error } = await withTimeout(
-        supabase.from('dashboards').delete().eq('id', id),
+        supabase.rpc('admin_delete_dashboard', { board_id: id }),
         'Eliminar tablero'
       )
       if (error) {
