@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
-import { Edit3, Plus, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Building2, Edit3, Plus, Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabase.js'
 import { useLang } from '../context/LanguageContext.jsx'
 
-const emptyForm = { name: '', embed_url: '', description: '' }
+const emptyForm = { name: '', embed_url: '', description: '', company_id: '' }
 
 function extractEmbedUrl(raw) {
   const trimmed = raw.trim()
@@ -26,6 +26,7 @@ function isValidPowerBiUrl(url) {
 export default function AdminDashboards() {
   const { t } = useLang()
   const [dashboards, setDashboards] = useState([])
+  const [companies, setCompanies]   = useState([])
   const [loading, setLoading]       = useState(true)
   const [saving, setSaving]         = useState(false)
   const [editing, setEditing]       = useState(null)
@@ -34,22 +35,47 @@ export default function AdminDashboards() {
 
   const load = async () => {
     setLoading(true)
-    const { data, error } = await supabase
-      .from('dashboards')
-      .select('*, user_dashboards(user_id)')
-      .order('created_at', { ascending: false })
-    if (error) setFormError(error.message)
-    else setDashboards(data || [])
+    const [boardsRes, companiesRes] = await Promise.all([
+      supabase
+        .from('dashboards')
+        .select('*, user_dashboards(user_id), companies(id, name)')
+        .order('created_at', { ascending: false }),
+      supabase.from('companies').select('id, name').order('name'),
+    ])
+    if (boardsRes.error) setFormError(boardsRes.error.message)
+    else setDashboards(boardsRes.data || [])
+    setCompanies(companiesRes.data || [])
     setLoading(false)
   }
 
   useEffect(() => { load() }, [])
 
+  // Agrupar por empresa: empresas ordenadas alfa, sin empresa al final
+  const grouped = useMemo(() => {
+    const map = {}
+    dashboards.forEach(board => {
+      const key  = board.company_id || '__none__'
+      const name = board.companies?.name || 'Sin empresa'
+      if (!map[key]) map[key] = { name, boards: [] }
+      map[key].boards.push(board)
+    })
+    return Object.entries(map).sort(([ka], [kb]) => {
+      if (ka === '__none__') return 1
+      if (kb === '__none__') return -1
+      return map[ka].name.localeCompare(map[kb].name)
+    })
+  }, [dashboards])
+
   const openNew = () => { setEditing({ id: null }); setForm(emptyForm); setFormError('') }
 
   const openEdit = (board) => {
     setEditing(board)
-    setForm({ name: board.name || '', embed_url: board.embed_url || '', description: board.description || '' })
+    setForm({
+      name:        board.name        || '',
+      embed_url:   board.embed_url   || '',
+      description: board.description || '',
+      company_id:  board.company_id  || '',
+    })
     setFormError('')
   }
 
@@ -66,7 +92,12 @@ export default function AdminDashboards() {
     }
 
     setSaving(true)
-    const payload = { name, embed_url: embedUrl, description: form.description.trim() || null }
+    const payload = {
+      name,
+      embed_url:   embedUrl,
+      description: form.description.trim() || null,
+      company_id:  form.company_id || null,
+    }
 
     try {
       let error
@@ -106,34 +137,47 @@ export default function AdminDashboards() {
         </button>
       </div>
 
-      <div className="boards-grid">
-        {loading ? (
-          <div className="card table-loading"><div className="spinner" /></div>
-        ) : dashboards.length === 0 ? (
-          <div className="empty-state page-empty">{t('admin.boards.empty')}</div>
-        ) : dashboards.map(board => (
-          <article className="board-card" key={board.id}>
-            <div className="board-card-main">
-              <div>
-                <h3>{board.name}</h3>
-                {board.description && <p>{board.description}</p>}
+      {loading ? (
+        <div className="card table-loading"><div className="spinner" /></div>
+      ) : dashboards.length === 0 ? (
+        <div className="empty-state page-empty">{t('admin.boards.empty')}</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+          {grouped.map(([key, { name, boards }]) => (
+            <div key={key}>
+              <div className="boards-section-header">
+                <Building2 size={13} />
+                {name}
+                <span className="boards-section-count">{boards.length}</span>
               </div>
-              <span className="badge badge-accent">
-                {(board.user_dashboards || []).length} {t('admin.boards.assigned')}
-              </span>
+              <div className="boards-grid">
+                {boards.map(board => (
+                  <article className="board-card" key={board.id}>
+                    <div className="board-card-main">
+                      <div>
+                        <h3>{board.name}</h3>
+                        {board.description && <p>{board.description}</p>}
+                      </div>
+                      <span className="badge badge-accent">
+                        {(board.user_dashboards || []).length} {t('admin.boards.assigned')}
+                      </span>
+                    </div>
+                    <div className="board-url">{board.embed_url}</div>
+                    <div className="row-actions">
+                      <button className="btn btn-secondary btn-sm" onClick={() => openEdit(board)}>
+                        <Edit3 size={13} /> {t('admin.boards.edit')}
+                      </button>
+                      <button className="btn btn-danger btn-sm" onClick={() => remove(board.id)}>
+                        <Trash2 size={13} /> {t('admin.boards.delete')}
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
             </div>
-            <div className="board-url">{board.embed_url}</div>
-            <div className="row-actions">
-              <button className="btn btn-secondary btn-sm" onClick={() => openEdit(board)}>
-                <Edit3 size={13} /> {t('admin.boards.edit')}
-              </button>
-              <button className="btn btn-danger btn-sm" onClick={() => remove(board.id)}>
-                <Trash2 size={13} /> {t('admin.boards.delete')}
-              </button>
-            </div>
-          </article>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {editing && (
         <div className="modal-overlay open">
@@ -154,6 +198,20 @@ export default function AdminDashboards() {
                   placeholder={t('admin.boards.name_placeholder')}
                   onChange={e => setForm({ ...form, name: e.target.value })}
                 />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Empresa</label>
+                <select
+                  className="form-input"
+                  value={form.company_id}
+                  onChange={e => setForm({ ...form, company_id: e.target.value })}
+                >
+                  <option value="">Sin empresa</option>
+                  {companies.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
               </div>
 
               <div className="form-group">
