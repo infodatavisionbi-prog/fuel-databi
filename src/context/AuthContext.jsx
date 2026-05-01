@@ -98,10 +98,15 @@ export function AuthProvider({ children }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
+        // INITIAL_SESSION is handled by getSession() above — skip to avoid double load
+        if (_event === 'INITIAL_SESSION') return
         try {
           setSession(session)
           if (session) {
-            await loadProfile(session.user.id)
+            // TOKEN_REFRESHED: JWT rotated but profile hasn't changed, no DB round-trip needed
+            if (_event !== 'TOKEN_REFRESHED') {
+              await loadProfile(session.user.id)
+            }
           } else {
             setProfile(null)
             localStorage.removeItem(PROFILE_CACHE)

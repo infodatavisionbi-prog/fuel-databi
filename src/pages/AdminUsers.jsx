@@ -12,14 +12,6 @@ function formatDate(value, fallback) {
 
 const emptyNewUser = { email: '', password: '', full_name: '', company_name: '' }
 
-function withTimeout(promise, label = 'Operacion', ms = 15000) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => {
-      setTimeout(() => reject(new Error(`${label} demoro demasiado. Revisa Supabase.`)), ms)
-    }),
-  ])
-}
 
 export default function AdminUsers() {
   const { t } = useLang()
@@ -43,20 +35,31 @@ export default function AdminUsers() {
   const [previewUrl, setPreviewUrl]   = useState(null)
   const [previewName, setPreviewName] = useState('')
 
-  const load = async () => {
+  const load = async (signal) => {
     setLoading(true)
-    const [usersRes, boardsRes, assignmentsRes] = await Promise.all([
-      supabase.from('profiles').select('*').order('created_at', { ascending: false }),
-      supabase.from('dashboards').select('*').order('name'),
-      supabase.from('user_dashboards').select('user_id, dashboard_id, dashboards(id, name, embed_url)'),
-    ])
-    setUsers(usersRes.data || [])
-    setBoards(boardsRes.data || [])
-    setAssignments(assignmentsRes.data || [])
-    setLoading(false)
+    setError('')
+    try {
+      let q1 = supabase.from('profiles').select('*').order('created_at', { ascending: false })
+      let q2 = supabase.from('dashboards').select('*').order('name')
+      let q3 = supabase.from('user_dashboards').select('user_id, dashboard_id, dashboards(id, name, embed_url)')
+      if (signal) { q1 = q1.abortSignal(signal); q2 = q2.abortSignal(signal); q3 = q3.abortSignal(signal) }
+      const [usersRes, boardsRes, assignmentsRes] = await Promise.all([q1, q2, q3])
+      setUsers(usersRes.data || [])
+      setBoards(boardsRes.data || [])
+      setAssignments(assignmentsRes.data || [])
+    } catch (err) {
+      if (!signal?.aborted) setError(err.message || 'Error cargando datos')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    const c = new AbortController()
+    const t = setTimeout(() => c.abort(), 10_000)
+    load(c.signal)
+    return () => { clearTimeout(t); c.abort() }
+  }, [])
 
   const selectedAssignments = useMemo(() => {
     if (!selectedUser) return []
@@ -110,18 +113,15 @@ export default function AdminUsers() {
 
     setCreating(true)
     try {
-      const { error } = await withTimeout(
-        supabase.rpc('admin_create_user', {
-          user_email: email.trim(),
-          user_password: password,
-          user_fullname: full_name.trim(),
-          user_company: company_name.trim(),
-        }),
-        'Crear usuario'
-      )
+      const { error } = await supabase.rpc('admin_create_user', {
+        user_email: email.trim(),
+        user_password: password,
+        user_fullname: full_name.trim(),
+        user_company: company_name.trim(),
+      })
       if (error) throw error
-    } catch (error) {
-      setCreateError(error.message || 'Error al crear el usuario')
+    } catch (err) {
+      setCreateError(err.message || 'Error al crear el usuario')
       return
     } finally {
       setCreating(false)
