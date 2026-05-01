@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { gsap } from 'gsap'
-import { Eye, EyeOff, Zap } from 'lucide-react'
+import { Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { useLang } from '../../context/LanguageContext.jsx'
 import { LANGS } from '../../i18n/index.js'
@@ -102,19 +102,11 @@ export default function AuthScreen() {
       <div ref={cardRef} className="auth-card">
         {/* Logo */}
         <div className="auth-logo-wrap">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 4 }}>
-            <div style={{
-              width: 36, height: 36,
-              background: 'var(--grad-primary)',
-              borderRadius: 10,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: 'var(--shadow-accent)',
-            }}>
-              <Zap size={20} color="#fff" fill="#fff" />
-            </div>
-            <span className="auth-logo-name">fuel</span>
-          </div>
-          <div className="auth-logo-domain">datavision-bi.com</div>
+          <img
+            src="/logo.png"
+            alt="DataVision"
+            style={{ width: '100%', maxWidth: 360, maxHeight: 110, height: 'auto', objectFit: 'contain', display: 'block', margin: '0 auto 14px' }}
+          />
         </div>
 
         {/* Tabs */}

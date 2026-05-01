@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { gsap } from 'gsap'
-import { LayoutDashboard, Users, Table2, Zap, AlertCircle } from 'lucide-react'
+import { LayoutDashboard, Users, Table2, AlertCircle } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { useLang } from '../../context/LanguageContext.jsx'
 
@@ -103,20 +103,7 @@ export default function Sidebar({ dashboards, activeDashboardId, onDashboardSele
     <aside ref={sidebarRef} className="sidebar">
       {/* Logo */}
       <div className="sidebar-logo">
-        <div style={{
-          width: 32, height: 32,
-          background: 'var(--grad-primary)',
-          borderRadius: 8,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: 'var(--shadow-accent)',
-          flexShrink: 0,
-        }}>
-          <Zap size={17} color="#fff" fill="#fff" />
-        </div>
-        <div>
-          <div className="sidebar-logo-text">fuel</div>
-          <div className="sidebar-logo-sub">datavision-bi.com</div>
-        </div>
+        <img src="/logo.png" alt="DataVision" className="sidebar-logo-img" />
       </div>
 
       {/* Navigation */}
