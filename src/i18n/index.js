@@ -26,6 +26,7 @@ export const translations = {
     'nav.logout':      'Salir',
     'nav.section_bi':  'Power BI',
     'nav.section_admin':'Administración',
+    'nav.companies':   'Empresas',
     'nav.no_boards':   'Sin paneles asignados',
 
     // Topbar
@@ -118,6 +119,7 @@ export const translations = {
     'nav.logout':      'Sign out',
     'nav.section_bi':  'Power BI',
     'nav.section_admin':'Administration',
+    'nav.companies':   'Companies',
     'nav.no_boards':   'No boards assigned',
 
     'topbar.welcome':  'Welcome,',
@@ -204,6 +206,7 @@ export const translations = {
     'nav.logout':      'Sair',
     'nav.section_bi':  'Power BI',
     'nav.section_admin':'Administração',
+    'nav.companies':   'Empresas',
     'nav.no_boards':   'Sem painéis atribuídos',
 
     'topbar.welcome':  'Bem-vindo,',

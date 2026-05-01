@@ -822,10 +822,97 @@ td { padding: 13px 14px; font-size: 13px; color: var(--text-secondary); vertical
 ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
 /* ══════════════════════════════════════════════════════════
+   COMPANY TABS
+══════════════════════════════════════════════════════════ */
+.company-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.company-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 18px 12px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.company-tab:hover {
+  border-color: var(--accent-glow);
+  color: var(--text-primary);
+  background: var(--bg-elevated);
+}
+
+.company-tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 4px 16px var(--accent-glow);
+}
+
+[data-theme="dark"] .company-tab.active {
+  box-shadow: 0 4px 20px rgba(14, 165, 233, 0.35);
+}
+
+/* ══════════════════════════════════════════════════════════
+   STAT CARDS (Estadísticas)
+══════════════════════════════════════════════════════════ */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.stat-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px 16px;
+}
+
+.stat-card-value {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--accent);
+  line-height: 1;
+  margin-bottom: 5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-card-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ══════════════════════════════════════════════════════════
+   CLICKABLE TABLE ROWS
+══════════════════════════════════════════════════════════ */
+.clickable-row { cursor: pointer; }
+.clickable-row:hover td { background: var(--bg-elevated); }
+
+/* ══════════════════════════════════════════════════════════
    RESPONSIVE
 ══════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
   .sidebar { position: fixed; left: 0; top: 0; bottom: 0; z-index: 100; transform: translateX(-100%); box-shadow: var(--shadow-lg); }
   .sidebar.open { transform: translateX(0); }
   .page-content { padding: 16px; }
+  .company-tabs { grid-template-columns: 1fr; }
+  .stat-grid { grid-template-columns: repeat(2, 1fr); }
 }

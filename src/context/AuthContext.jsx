@@ -136,6 +136,11 @@ export function AuthProvider({ children }) {
   }
 
   const logout = async () => {
+    const sid = sessionStorage.getItem('fuel.sess')
+    if (sid) {
+      supabase.from('user_sessions').update({ ended_at: new Date().toISOString() }).eq('id', sid).then(() => {})
+      sessionStorage.removeItem('fuel.sess')
+    }
     localStorage.removeItem(PROFILE_CACHE)
     await supabase.auth.signOut()
     setProfile(null)

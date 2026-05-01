@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { gsap } from 'gsap'
-import { LayoutDashboard, Users, Table2, AlertCircle } from 'lucide-react'
+import { Building2, LayoutDashboard, Users, Table2, AlertCircle } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { useLang } from '../../context/LanguageContext.jsx'
 
@@ -65,8 +65,9 @@ function AdminSidebar({ activeView, onSelect }) {
   const { t } = useLang()
 
   const items = [
-    { id: 'users',      label: t('nav.users'),  icon: Users },
-    { id: 'dashboards', label: t('nav.boards'), icon: Table2 },
+    { id: 'users',      label: t('nav.users'),     icon: Users },
+    { id: 'dashboards', label: t('nav.boards'),    icon: Table2 },
+    { id: 'companies',  label: t('nav.companies'), icon: Building2 },
   ]
 
   return (
