@@ -109,6 +109,15 @@ export default function PowerBIEmbed({ dashboard, style }) {
         <div className="form-error visible" style={{ margin: 16 }}>{error}</div>
       )}
       <div ref={containerRef} style={{ flex: 1, width: '100%' }} />
+      {/* Cubre el banner "versión de prueba gratuita" de Power BI Embedded */}
+      {!loading && !error && (
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0,
+          height: 44,
+          background: 'var(--bg-surface)',
+          zIndex: 4,
+        }} />
+      )}
     </div>
   )
 }
