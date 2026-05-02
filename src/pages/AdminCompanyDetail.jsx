@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, BarChart2, Crown, Download, Eye, FileText, FolderOpen, LayoutDashboard, Plus, Power, Receipt, ShieldCheck, Trash2, Upload, UserRound, Users, X } from 'lucide-react'
+import { useAuth } from '../context/AuthContext.jsx'
 import { supabase } from '../lib/supabase.js'
 import PdfViewer from '../components/PdfViewer.jsx'
 
@@ -656,6 +657,7 @@ function GroupsTab({ company }) {
 
 // ── FACTURAS ──────────────────────────────────────────────────────────────────
 function InvoicesTab({ company }) {
+  const { isAdmin } = useAuth()
   const [invoices, setInvoices]   = useState([])
   const [loading, setLoading]     = useState(true)
   const [uploading, setUploading] = useState(false)
@@ -720,13 +722,15 @@ function InvoicesTab({ company }) {
 
   return (
     <>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
-        <input ref={fileRef} type="file" accept="application/pdf" style={{ display: 'none' }} onChange={handleUpload} />
-        <button className="btn btn-primary" onClick={() => fileRef.current.click()} disabled={uploading}>
-          {uploading ? <span className="spinner" style={{ width: 14, height: 14 }} /> : <Upload size={14} />}
-          Subir factura PDF
-        </button>
-      </div>
+      {isAdmin && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
+          <input ref={fileRef} type="file" accept="application/pdf" style={{ display: 'none' }} onChange={handleUpload} />
+          <button className="btn btn-primary" onClick={() => fileRef.current.click()} disabled={uploading}>
+            {uploading ? <span className="spinner" style={{ width: 14, height: 14 }} /> : <Upload size={14} />}
+            Subir factura PDF
+          </button>
+        </div>
+      )}
 
       {error && <div className="form-error visible" style={{ marginBottom: 14 }}>{error}</div>}
 
@@ -758,16 +762,20 @@ function InvoicesTab({ company }) {
                       </div>
                     </td>
                     <td>
-                      <select
-                        className={`badge ${st.badge}`}
-                        style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontWeight: 600, fontSize: 11 }}
-                        value={inv.status}
-                        onChange={e => updateStatus(inv, e.target.value)}
-                      >
-                        {STATUS_OPTIONS.map(s => (
-                          <option key={s.value} value={s.value}>{s.label}</option>
-                        ))}
-                      </select>
+                      {isAdmin ? (
+                        <select
+                          className={`badge ${st.badge}`}
+                          style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontWeight: 600, fontSize: 11 }}
+                          value={inv.status}
+                          onChange={e => updateStatus(inv, e.target.value)}
+                        >
+                          {STATUS_OPTIONS.map(s => (
+                            <option key={s.value} value={s.value}>{s.label}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className={`badge ${st.badge}`}>{st.label}</span>
+                      )}
                     </td>
                     <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>
                       {inv.file_size ? (inv.file_size < 1048576 ? `${(inv.file_size / 1024).toFixed(0)} KB` : `${(inv.file_size / 1048576).toFixed(1)} MB`) : '—'}
@@ -778,9 +786,11 @@ function InvoicesTab({ company }) {
                         <button className="btn btn-secondary btn-sm" onClick={() => setViewing(inv)}>
                           <Eye size={13} /> Ver
                         </button>
-                        <button className="btn btn-ghost btn-icon" style={{ color: 'var(--danger)' }} onClick={() => deleteInvoice(inv)}>
-                          <Trash2 size={14} />
-                        </button>
+                        {isAdmin && (
+                          <button className="btn btn-ghost btn-icon" style={{ color: 'var(--danger)' }} onClick={() => deleteInvoice(inv)}>
+                            <Trash2 size={14} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
