@@ -24,6 +24,9 @@ export default function Layout() {
   const [adminView, setAdminView]             = useState('users')
   const [selectedCompany, setSelectedCompany] = useState(null)
 
+  // Mobile sidebar
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
   const contentRef = useRef(null)
 
   // Load dashboards for regular users (user_dashboards + company_dashboards + group_dashboards)
@@ -124,6 +127,7 @@ export default function Layout() {
     animate()
     setAdminView(view)
     setSelectedCompany(null)
+    setSidebarOpen(false)
   }
 
   const handleSelectCompany = (company) => {
@@ -153,13 +157,15 @@ export default function Layout() {
       <Sidebar
         dashboards={dashboards}
         activeDashboardId={activeDashboardId}
-        onDashboardSelect={handleDashboardSelect}
+        onDashboardSelect={(id) => { handleDashboardSelect(id); setSidebarOpen(false) }}
         adminView={adminView}
         onAdminViewSelect={handleAdminViewSelect}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
 
       <div className="main-area">
-        <Topbar title={getTitle()} />
+        <Topbar title={getTitle()} onMenuToggle={() => setSidebarOpen(o => !o)} />
 
         <main ref={contentRef} className="page-content">
           {isAdmin ? (

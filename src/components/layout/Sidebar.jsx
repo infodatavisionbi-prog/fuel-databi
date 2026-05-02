@@ -101,7 +101,7 @@ function OwnerSidebar() {
 }
 
 // ── SIDEBAR WRAPPER ──────────────────────────────────────────
-export default function Sidebar({ dashboards, activeDashboardId, onDashboardSelect, adminView, onAdminViewSelect }) {
+export default function Sidebar({ dashboards, activeDashboardId, onDashboardSelect, adminView, onAdminViewSelect, isOpen, onClose }) {
   const { isAdmin, isCompanyOwner, profile } = useAuth()
   const sidebarRef = useRef(null)
 
@@ -114,7 +114,9 @@ export default function Sidebar({ dashboards, activeDashboardId, onDashboardSele
   }, [])
 
   return (
-    <aside ref={sidebarRef} className="sidebar">
+    <>
+      {isOpen && <div className="sidebar-backdrop" onClick={onClose} />}
+      <aside ref={sidebarRef} className={`sidebar${isOpen ? ' open' : ''}`}>
       {/* Logo */}
       <div className="sidebar-logo">
         <img src="/logo.png" alt="DataVision" className="sidebar-logo-img" />
@@ -154,5 +156,6 @@ export default function Sidebar({ dashboards, activeDashboardId, onDashboardSele
         </div>
       )}
     </aside>
+    </>
   )
 }

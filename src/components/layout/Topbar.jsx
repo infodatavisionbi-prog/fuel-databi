@@ -41,10 +41,9 @@ export default function Topbar({ title, onMenuToggle }) {
   return (
     <header className="topbar">
       <button
-        className="btn btn-ghost btn-icon"
+        className="btn btn-ghost btn-icon sidebar-toggle"
         onClick={onMenuToggle}
-        style={{ display: 'none' }}
-        id="sidebar-toggle"
+        aria-label="Menú"
       >
         <Menu size={18} />
       </button>
