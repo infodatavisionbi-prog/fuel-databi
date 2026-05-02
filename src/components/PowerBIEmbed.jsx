@@ -25,9 +25,12 @@ export default function PowerBIEmbed({ dashboard, style }) {
       setLoading(true)
       setError('')
       try {
+        console.log('[PBI] iniciando embed para', dashboard.report_id)
         const { data: { session } } = await supabase.auth.getSession()
+        console.log('[PBI] session:', session ? 'ok' : 'null', session?.access_token ? 'token ok' : 'sin token')
         if (!session?.access_token) throw new Error('Sesión no activa — volvé a iniciar sesión')
 
+        console.log('[PBI] fetching token desde', `${EDGE_FN}/token`)
         const res = await fetch(`${EDGE_FN}/token`, {
           method: 'POST',
           headers: {
@@ -40,6 +43,7 @@ export default function PowerBIEmbed({ dashboard, style }) {
           }),
         })
         const json = await res.json()
+        console.log('[PBI] token response:', res.status, json)
         if (!res.ok) throw new Error(json.error ?? json.message ?? 'Error obteniendo token')
         if (!alive) return
 
@@ -66,6 +70,7 @@ export default function PowerBIEmbed({ dashboard, style }) {
 
         setLoading(false)
       } catch (err) {
+        console.error('[PBI] error:', err.message)
         if (alive) { setError(err.message); setLoading(false) }
       }
     }
