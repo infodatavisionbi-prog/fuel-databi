@@ -849,19 +849,19 @@ td { padding: 13px 14px; font-size: 13px; color: var(--text-secondary); vertical
    COMPANY TABS
 ══════════════════════════════════════════════════════════ */
 .company-tabs {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
   margin-bottom: 20px;
 }
 
 .company-tab {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  padding: 18px 12px;
+  gap: 6px;
+  padding: 7px 16px;
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
   background: var(--bg-surface);
