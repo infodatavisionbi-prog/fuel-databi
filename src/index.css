@@ -73,16 +73,16 @@
    DARK TOKENS
 ══════════════════════════════════════════════════════════ */
 [data-theme="dark"] {
-  --bg-base:     #111318;
-  --bg-surface:  #191c24;
-  --bg-elevated: #1f2330;
-  --bg-hover:    #262c3c;
-  --bg-card:     #1b1f2b;
-  --bg-glass:    rgba(25, 28, 36, 0.80);
+  --bg-base:     #1e2230;
+  --bg-surface:  #272c3e;
+  --bg-elevated: #2e3349;
+  --bg-hover:    #363d56;
+  --bg-card:     #282d40;
+  --bg-glass:    rgba(39, 44, 62, 0.85);
 
-  --border:        rgba(255, 255, 255, 0.06);
-  --border-light:  rgba(255, 255, 255, 0.09);
-  --border-strong: rgba(255, 255, 255, 0.14);
+  --border:        rgba(255, 255, 255, 0.08);
+  --border-light:  rgba(255, 255, 255, 0.11);
+  --border-strong: rgba(255, 255, 255, 0.18);
 
   --accent:       #38bdf8;
   --accent-2:     #7dd3fc;
@@ -94,7 +94,7 @@
   --grad-primary:   linear-gradient(135deg, #38bdf8 0%, #7dd3fc 100%);
   --grad-primary-h: linear-gradient(135deg, #0ea5e9 0%, #38bdf8 100%);
   --grad-text:      linear-gradient(135deg, #7dd3fc 0%, #bae6fd 100%);
-  --grad-sidebar:   #191c24;
+  --grad-sidebar:   #272c3e;
 
   --success:     #22c55e;
   --success-dim: rgba(34,197,94,0.12);
@@ -105,14 +105,14 @@
   --purple:      #a78bfa;
   --purple-dim:  rgba(167,139,250,0.12);
 
-  --text-primary:   #e1e5ef;
-  --text-secondary: #7a8499;
-  --text-muted:     #3f475a;
+  --text-primary:   #e4e8f4;
+  --text-secondary: #8b96ae;
+  --text-muted:     #5a6580;
 
-  --shadow-xs: 0 1px 3px rgba(0,0,0,0.40);
-  --shadow-sm: 0 2px 8px rgba(0,0,0,0.50), 0 1px 2px rgba(0,0,0,0.30);
-  --shadow:    0 8px 28px rgba(0,0,0,0.60), 0 2px 8px rgba(0,0,0,0.35);
-  --shadow-lg: 0 20px 56px rgba(0,0,0,0.75), 0 8px 20px rgba(0,0,0,0.45);
+  --shadow-xs: 0 1px 3px rgba(0,0,0,0.30);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.35), 0 1px 2px rgba(0,0,0,0.20);
+  --shadow:    0 8px 28px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.25);
+  --shadow-lg: 0 20px 56px rgba(0,0,0,0.55), 0 8px 20px rgba(0,0,0,0.30);
   --shadow-accent: 0 4px 16px rgba(56, 189, 248, 0.28);
   --shadow-glow:   0 0 40px rgba(56, 189, 248, 0.12);
 
@@ -579,20 +579,20 @@ td { padding: 13px 14px; font-size: 13px; color: var(--text-secondary); vertical
 .modal .form-error { margin-top: 0; }
 
 [data-theme="dark"] .modal {
-  border-color: rgba(125, 211, 252, 0.14);
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.78), 0 0 0 1px rgba(255, 255, 255, 0.03);
+  border-color: rgba(125, 211, 252, 0.16);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.05);
 }
 
 [data-theme="dark"] .modal .form-label { color: #aab4c8; }
 [data-theme="dark"] .modal .form-input,
 [data-theme="dark"] .modal .form-select,
 [data-theme="dark"] .modal .form-textarea {
-  background: #202432;
-  border-color: rgba(255, 255, 255, 0.11);
+  background: #2e3349;
+  border-color: rgba(255, 255, 255, 0.13);
 }
 
 [data-theme="dark"] .modal .form-input::placeholder,
-[data-theme="dark"] .modal .form-textarea::placeholder { color: #596275; }
+[data-theme="dark"] .modal .form-textarea::placeholder { color: #6a7590; }
 
 /* ══════════════════════════════════════════════════════════
    AUTH SCREEN
@@ -619,9 +619,9 @@ td { padding: 13px 14px; font-size: 13px; color: var(--text-secondary); vertical
 
 [data-theme="dark"] .auth-screen {
   background:
-    radial-gradient(42vw 34vw at 18% 42%, rgba(14, 165, 233, 0.18) 0%, rgba(14, 165, 233, 0) 72%),
-    radial-gradient(34vw 34vw at 78% 36%, rgba(56, 189, 248, 0.14) 0%, rgba(56, 189, 248, 0) 70%),
-    linear-gradient(180deg, #070f1c 0%, #060e18 100%);
+    radial-gradient(42vw 34vw at 18% 42%, rgba(14, 165, 233, 0.16) 0%, rgba(14, 165, 233, 0) 72%),
+    radial-gradient(34vw 34vw at 78% 36%, rgba(56, 189, 248, 0.12) 0%, rgba(56, 189, 248, 0) 70%),
+    linear-gradient(180deg, #1a1f2e 0%, #181c2a 100%);
 }
 
 .auth-card {
@@ -637,9 +637,9 @@ td { padding: 13px 14px; font-size: 13px; color: var(--text-secondary); vertical
 }
 
 [data-theme="dark"] .auth-card {
-  background: rgba(10, 22, 40, 0.74);
+  background: rgba(30, 40, 65, 0.82);
   border-color: rgba(56, 189, 248, 0.22);
-  box-shadow: 0 24px 58px rgba(0, 0, 0, 0.52);
+  box-shadow: 0 24px 58px rgba(0, 0, 0, 0.38);
 }
 
 .auth-logo-wrap { text-align: center; margin-bottom: 28px; }
@@ -656,7 +656,7 @@ td { padding: 13px 14px; font-size: 13px; color: var(--text-secondary); vertical
 }
 
 [data-theme="dark"] .auth-tabs {
-  background: rgba(20, 38, 62, 0.54);
+  background: rgba(40, 55, 88, 0.54);
   border-color: rgba(56, 189, 248, 0.20);
 }
 
