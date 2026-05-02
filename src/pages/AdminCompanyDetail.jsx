@@ -25,6 +25,8 @@ function fmtDuration(seconds) {
 }
 
 // ── USUARIOS ──────────────────────────────────────────────────────────────────
+const emptyCreate = { full_name: '', email: '', password: '' }
+
 function UsersTab({ company }) {
   const [users, setUsers]         = useState([])
   const [allUsers, setAllUsers]   = useState([])
@@ -32,6 +34,10 @@ function UsersTab({ company }) {
   const [error, setError]         = useState('')
   const [showAdd, setShowAdd]     = useState(false)
   const [userToAdd, setUserToAdd] = useState('')
+  const [showCreate, setShowCreate] = useState(false)
+  const [createForm, setCreateForm] = useState(emptyCreate)
+  const [createError, setCreateError] = useState('')
+  const [creating, setCreating]   = useState(false)
 
   const load = async () => {
     setLoading(true)
@@ -83,11 +89,39 @@ function UsersTab({ company }) {
     load()
   }
 
+  const createUser = async () => {
+    setCreateError('')
+    const { full_name, email, password } = createForm
+    if (!full_name.trim())              { setCreateError('El nombre es obligatorio'); return }
+    if (!email.trim())                  { setCreateError('El email es obligatorio'); return }
+    if (!password || password.length < 6) { setCreateError('La contraseña debe tener al menos 6 caracteres'); return }
+    setCreating(true)
+    try {
+      const { error } = await supabase.rpc('create_company_user', {
+        target_company_id: company.id,
+        user_email:        email.trim(),
+        user_password:     password,
+        user_fullname:     full_name.trim(),
+      })
+      if (error) throw error
+      setShowCreate(false)
+      setCreateForm(emptyCreate)
+      load()
+    } catch (err) {
+      setCreateError(err.message || 'Error al crear el usuario')
+    } finally {
+      setCreating(false)
+    }
+  }
+
   return (
     <>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
-        <button className="btn btn-primary" onClick={() => { setShowAdd(true); setUserToAdd('') }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 14 }}>
+        <button className="btn btn-secondary" onClick={() => { setShowAdd(true); setUserToAdd('') }}>
           <Plus size={14} /> Agregar usuario
+        </button>
+        <button className="btn btn-primary" onClick={() => { setShowCreate(true); setCreateForm(emptyCreate); setCreateError('') }}>
+          <Plus size={14} /> Crear usuario
         </button>
       </div>
 
@@ -179,6 +213,43 @@ function UsersTab({ company }) {
             <div className="modal-footer">
               <button className="btn btn-secondary" onClick={() => setShowAdd(false)}>Cancelar</button>
               <button className="btn btn-primary" onClick={addUser} disabled={!userToAdd}>Agregar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCreate && (
+        <div className="modal-overlay open">
+          <div className="modal">
+            <div className="modal-header">
+              <div className="modal-title">Nuevo usuario en {company.name}</div>
+              <button className="btn btn-ghost btn-icon" onClick={() => setShowCreate(false)}><X size={16} /></button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label className="form-label">Nombre completo</label>
+                <input className="form-input" autoFocus value={createForm.full_name} placeholder="Juan García"
+                  onChange={e => setCreateForm(f => ({ ...f, full_name: e.target.value }))} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Email</label>
+                <input className="form-input" type="email" value={createForm.email} placeholder="juan@empresa.com"
+                  onChange={e => setCreateForm(f => ({ ...f, email: e.target.value }))} />
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Contraseña inicial</label>
+                <input className="form-input" type="password" value={createForm.password} placeholder="Mínimo 6 caracteres"
+                  onChange={e => setCreateForm(f => ({ ...f, password: e.target.value }))}
+                  onKeyDown={e => e.key === 'Enter' && createUser()} />
+              </div>
+              {createError && <div className="form-error visible" style={{ marginTop: 12 }}>{createError}</div>}
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowCreate(false)}>Cancelar</button>
+              <button className="btn btn-primary" onClick={createUser} disabled={creating}>
+                {creating ? <span className="spinner" style={{ width: 14, height: 14 }} /> : <Plus size={14} />}
+                Crear usuario
+              </button>
             </div>
           </div>
         </div>
