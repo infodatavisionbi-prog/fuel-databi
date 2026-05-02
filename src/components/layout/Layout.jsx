@@ -238,7 +238,13 @@ export default function Layout() {
 
     const dashboard = ownerDashboards.find(d => d.id === ownerView)
     if (dashboard) {
-      return <PowerBIEmbed dashboard={dashboard} style={{ flex: 1 }} />
+      return (
+        <section className="dashboard-view">
+          <div className="powerbi-shell">
+            <PowerBIEmbed key={dashboard.id} dashboard={dashboard} style={{ height: '100%' }} />
+          </div>
+        </section>
+      )
     }
 
     return null
