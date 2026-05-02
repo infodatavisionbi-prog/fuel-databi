@@ -797,16 +797,18 @@ function InvoicesTab({ company }) {
 }
 
 // ── PRINCIPAL ─────────────────────────────────────────────────────────────────
-export default function AdminCompanyDetail({ company, onBack }) {
-  const [tab, setTab] = useState('users')
+export default function AdminCompanyDetail({ company, onBack, initialTab = 'users' }) {
+  const [tab, setTab] = useState(initialTab)
 
   return (
     <>
       <div className="page-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button className="btn btn-ghost btn-icon" onClick={onBack} title="Volver">
-            <ArrowLeft size={16} />
-          </button>
+          {onBack && (
+            <button className="btn btn-ghost btn-icon" onClick={onBack} title="Volver">
+              <ArrowLeft size={16} />
+            </button>
+          )}
           <div>
             <div className="page-header-title">{company.name}</div>
             <div className="page-header-sub">Gestión de empresa</div>

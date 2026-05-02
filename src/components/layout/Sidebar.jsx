@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { gsap } from 'gsap'
-import { Building2, LayoutDashboard, Users, Table2, AlertCircle } from 'lucide-react'
+import { AlertCircle, BarChart2, Building2, FileText, FolderOpen, LayoutDashboard, Receipt, Table2, Users } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { useLang } from '../../context/LanguageContext.jsx'
 
@@ -88,20 +88,49 @@ function AdminSidebar({ activeView, onSelect }) {
 }
 
 // ── OWNER SIDEBAR ────────────────────────────────────────────
-function OwnerSidebar() {
+const OWNER_EMPRESA_ITEMS = [
+  { id: 'empresa',  label: 'Empresa',       icon: Building2    },
+  { id: 'grupos',   label: 'Grupos',        icon: FolderOpen   },
+  { id: 'stats',    label: 'Estadísticas',  icon: BarChart2    },
+  { id: 'facturas', label: 'Facturas',      icon: Receipt      },
+]
+
+function OwnerSidebar({ dashboards, activeView, onSelect }) {
   return (
     <>
       <div className="nav-section">Mi empresa</div>
-      <button className="nav-item active">
-        <Users size={15} />
-        <span className="nav-item-label">Grupos</span>
-      </button>
+      {OWNER_EMPRESA_ITEMS.map(item => (
+        <button
+          key={item.id}
+          className={`nav-item ${activeView === item.id ? 'active' : ''}`}
+          onClick={() => onSelect(item.id)}
+        >
+          <item.icon size={15} />
+          <span className="nav-item-label">{item.label}</span>
+        </button>
+      ))}
+
+      {dashboards.length > 0 && (
+        <>
+          <div className="nav-section">Tableros</div>
+          {dashboards.map(d => (
+            <button
+              key={d.id}
+              className={`nav-item ${activeView === d.id ? 'active' : ''}`}
+              onClick={() => onSelect(d.id)}
+            >
+              <LayoutDashboard size={15} />
+              <span className="nav-item-label">{d.name}</span>
+            </button>
+          ))}
+        </>
+      )}
     </>
   )
 }
 
 // ── SIDEBAR WRAPPER ──────────────────────────────────────────
-export default function Sidebar({ dashboards, activeDashboardId, onDashboardSelect, adminView, onAdminViewSelect, isOpen, onClose }) {
+export default function Sidebar({ dashboards, activeDashboardId, onDashboardSelect, adminView, onAdminViewSelect, ownerView, ownerDashboards, onOwnerSelect, isOpen, onClose }) {
   const { isAdmin, isCompanyOwner, profile } = useAuth()
   const sidebarRef = useRef(null)
 
@@ -127,7 +156,11 @@ export default function Sidebar({ dashboards, activeDashboardId, onDashboardSele
         {isAdmin ? (
           <AdminSidebar activeView={adminView} onSelect={onAdminViewSelect} />
         ) : isCompanyOwner ? (
-          <OwnerSidebar />
+          <OwnerSidebar
+            dashboards={ownerDashboards || []}
+            activeView={ownerView}
+            onSelect={onOwnerSelect}
+          />
         ) : (
           <UserSidebar
             dashboards={dashboards}

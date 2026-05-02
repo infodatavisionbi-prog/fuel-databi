@@ -10,26 +10,38 @@ import AdminUsers          from '../../pages/AdminUsers.jsx'
 import AdminDashboards     from '../../pages/AdminDashboards.jsx'
 import AdminCompanies      from '../../pages/AdminCompanies.jsx'
 import AdminCompanyDetail  from '../../pages/AdminCompanyDetail.jsx'
-import OwnerGroups         from '../../pages/OwnerGroups.jsx'
+import PowerBIEmbed        from '../PowerBIEmbed.jsx'
+
+const OWNER_TAB_MAP = {
+  empresa:  'users',
+  grupos:   'groups',
+  stats:    'stats',
+  facturas: 'invoices',
+}
 
 export default function Layout() {
   const { session, isAdmin, isCompanyOwner, isCompanyPaused, profile } = useAuth()
   const { t } = useLang()
 
   // User dashboards
-  const [dashboards, setDashboards]           = useState([])
-  const [activeDashboardId, setActiveDashId]  = useState(null)
+  const [dashboards, setDashboards]          = useState([])
+  const [activeDashboardId, setActiveDashId] = useState(null)
 
   // Admin view
   const [adminView, setAdminView]             = useState('users')
   const [selectedCompany, setSelectedCompany] = useState(null)
+
+  // Owner view
+  const [ownerView, setOwnerView]         = useState('empresa')
+  const [ownerCompany, setOwnerCompany]   = useState(null)
+  const [ownerDashboards, setOwnerDashboards] = useState([])
 
   // Mobile sidebar
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const contentRef = useRef(null)
 
-  // Load dashboards for regular users (user_dashboards + company_dashboards + group_dashboards)
+  // Load dashboards for regular users
   useEffect(() => {
     if (!session || isAdmin || isCompanyOwner) return
 
@@ -37,21 +49,18 @@ export default function Layout() {
       const DASH_FIELDS = 'id, name, embed_url, description, report_id, group_id'
 
       const baseQueries = [
-        supabase
-          .from('user_dashboards')
+        supabase.from('user_dashboards')
           .select(`dashboard_id, dashboards(${DASH_FIELDS})`)
           .eq('user_id', session.user.id)
           .order('assigned_at', { ascending: true }),
-        supabase
-          .from('group_members')
+        supabase.from('group_members')
           .select('group_id')
           .eq('user_id', session.user.id),
       ]
 
       if (profile?.company_id) {
         baseQueries.push(
-          supabase
-            .from('company_dashboards')
+          supabase.from('company_dashboards')
             .select(`dashboard_id, dashboards(${DASH_FIELDS})`)
             .eq('company_id', profile.company_id)
         )
@@ -60,13 +69,10 @@ export default function Layout() {
       const results = await Promise.all(baseQueries)
       const seen = new Set()
       const boards = []
-
       const addBoard = (d) => { if (d && !seen.has(d.id)) { seen.add(d.id); boards.push(d) } }
 
-      // user_dashboards
       ;(results[0].data || []).forEach(row => addBoard(row.dashboards))
 
-      // group_dashboards — separate query to avoid group_id ambiguity
       const groupIds = (results[1].data || []).map(r => r.group_id)
       if (groupIds.length > 0) {
         const { data: gdRows } = await supabase
@@ -76,7 +82,6 @@ export default function Layout() {
         ;(gdRows || []).forEach(row => addBoard(row.dashboards))
       }
 
-      // company_dashboards
       if (results[2]) {
         ;(results[2].data || []).forEach(row => addBoard(row.dashboards))
       }
@@ -88,11 +93,29 @@ export default function Layout() {
     load()
   }, [session, isAdmin, isCompanyOwner, profile?.company_id])
 
+  // Load company + dashboards for owner
+  useEffect(() => {
+    if (!session || !isCompanyOwner || !profile?.company_id) return
+
+    const load = async () => {
+      const DASH_FIELDS = 'id, name, embed_url, description, report_id, group_id'
+      const [companyRes, boardsRes] = await Promise.all([
+        supabase.from('companies').select('*').eq('id', profile.company_id).single(),
+        supabase.from('company_dashboards')
+          .select(`dashboard_id, dashboards(${DASH_FIELDS})`)
+          .eq('company_id', profile.company_id),
+      ])
+      setOwnerCompany(companyRes.data || null)
+      setOwnerDashboards((boardsRes.data || []).map(r => r.dashboards).filter(Boolean))
+    }
+
+    load()
+  }, [session, isCompanyOwner, profile?.company_id])
+
   // Session tracking heartbeat
   useEffect(() => {
     if (!session) return
 
-    // Create session record if none in this tab
     if (!sessionStorage.getItem('fuel.sess')) {
       supabase.from('user_sessions')
         .insert({ user_id: session.user.id })
@@ -101,7 +124,6 @@ export default function Layout() {
         .then(({ data }) => { if (data) sessionStorage.setItem('fuel.sess', data.id) })
     }
 
-    // Ping every 2 minutes to keep last_active_at current
     const interval = setInterval(() => {
       const sid = sessionStorage.getItem('fuel.sess')
       if (sid) {
@@ -142,18 +164,32 @@ export default function Layout() {
     setSelectedCompany(null)
   }
 
-  // Page title
+  const handleOwnerSelect = (view) => {
+    if (view === ownerView) return
+    animate()
+    setOwnerView(view)
+    setSidebarOpen(false)
+  }
+
   const getTitle = () => {
     if (isAdmin) {
       if (adminView === 'users')      return t('admin.users.title')
       if (adminView === 'dashboards') return t('admin.boards.title')
       if (adminView === 'companies')  return selectedCompany ? selectedCompany.name : 'Empresas'
     }
-    if (isCompanyOwner) return 'Grupos'
+    if (isCompanyOwner) {
+      if (ownerView === 'empresa')  return 'Empresa'
+      if (ownerView === 'grupos')   return 'Grupos'
+      if (ownerView === 'stats')    return 'Estadísticas'
+      if (ownerView === 'facturas') return 'Facturas'
+      const dash = ownerDashboards.find(d => d.id === ownerView)
+      return dash?.name || ''
+    }
     const active = dashboards.find(d => d.id === activeDashboardId)
     return active?.name || t('nav.dashboards')
   }
 
+  // ── PAUSED ────────────────────────────────────────────────
   if (isCompanyPaused) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-base)' }}>
@@ -165,17 +201,13 @@ export default function Layout() {
             border: '1px solid var(--border)',
             boxShadow: '0 8px 48px rgba(0,0,0,0.18)',
           }}>
-            <img
-              src="/logo.png"
-              alt="DataVision"
-              style={{ height: 52, objectFit: 'contain', display: 'block', margin: '0 auto 32px' }}
-            />
+            <img src="/logo.png" alt="DataVision"
+              style={{ height: 52, objectFit: 'contain', display: 'block', margin: '0 auto 32px' }} />
             <div style={{
               width: 56, height: 56, borderRadius: '50%',
               background: 'var(--danger-dim)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              margin: '0 auto 20px',
-              fontSize: 26,
+              margin: '0 auto 20px', fontSize: 26,
             }}>🔒</div>
             <div style={{ fontSize: 19, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 10 }}>
               Acceso suspendido
@@ -190,6 +222,28 @@ export default function Layout() {
     )
   }
 
+  // ── OWNER content ─────────────────────────────────────────
+  const ownerContent = () => {
+    if (!ownerCompany) return <div className="table-loading"><div className="spinner" /></div>
+
+    if (OWNER_TAB_MAP[ownerView]) {
+      return (
+        <AdminCompanyDetail
+          key={ownerView}
+          company={ownerCompany}
+          initialTab={OWNER_TAB_MAP[ownerView]}
+        />
+      )
+    }
+
+    const dashboard = ownerDashboards.find(d => d.id === ownerView)
+    if (dashboard) {
+      return <PowerBIEmbed dashboard={dashboard} style={{ flex: 1 }} />
+    }
+
+    return null
+  }
+
   return (
     <div className="app-shell">
       <Sidebar
@@ -198,6 +252,9 @@ export default function Layout() {
         onDashboardSelect={(id) => { handleDashboardSelect(id); setSidebarOpen(false) }}
         adminView={adminView}
         onAdminViewSelect={handleAdminViewSelect}
+        ownerView={ownerView}
+        ownerDashboards={ownerDashboards}
+        onOwnerSelect={handleOwnerSelect}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
@@ -215,7 +272,7 @@ export default function Layout() {
                 : <AdminCompanies onSelect={handleSelectCompany} />
             ) : null
           ) : isCompanyOwner ? (
-            <OwnerGroups />
+            ownerContent()
           ) : (
             <UserDashboards
               dashboards={dashboards}
