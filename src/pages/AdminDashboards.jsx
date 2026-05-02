@@ -34,8 +34,9 @@ export default function AdminDashboards() {
   const [editing, setEditing]       = useState(null)
   const [form, setForm]             = useState(emptyForm)
   const [formError, setFormError]   = useState('')
-  const [pbiReports, setPbiReports] = useState([])
-  const [loadingPbi, setLoadingPbi] = useState(false)
+  const [pbiReports, setPbiReports]     = useState([])
+  const [loadingPbi, setLoadingPbi]     = useState(false)
+  const [filterCompany, setFilterCompany] = useState('')
 
   const load = async () => {
     setLoading(true)
@@ -176,13 +177,38 @@ export default function AdminDashboards() {
 
       {loadError && <div className="form-error visible" style={{ marginBottom: 16 }}>{loadError}</div>}
 
+      {!loading && !loadError && companies.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+          <select
+            className="form-input"
+            style={{ maxWidth: 240 }}
+            value={filterCompany}
+            onChange={e => setFilterCompany(e.target.value)}
+          >
+            <option value="">Todas las empresas</option>
+            {companies.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+            <option value="__none__">Sin empresa</option>
+          </select>
+          {filterCompany && (
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={() => setFilterCompany('')}
+            >
+              Limpiar filtro
+            </button>
+          )}
+        </div>
+      )}
+
       {loading ? (
         <div className="card table-loading"><div className="spinner" /></div>
       ) : !loadError && dashboards.length === 0 ? (
         <div className="empty-state page-empty">{t('admin.boards.empty')}</div>
       ) : !loadError ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-          {grouped.map(([key, { name, boards }]) => (
+          {grouped.filter(([key]) => !filterCompany || key === filterCompany).map(([key, { name, boards }]) => (
             <div key={key}>
               <div className="boards-section-header">
                 <Building2 size={13} />
