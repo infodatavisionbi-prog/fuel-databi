@@ -34,49 +34,51 @@ export default function Layout() {
     if (!session || isAdmin || isCompanyOwner) return
 
     const load = async () => {
-      const queries = [
+      const DASH_FIELDS = 'id, name, embed_url, description, report_id, group_id'
+
+      const baseQueries = [
         supabase
           .from('user_dashboards')
-          .select('dashboard_id, dashboards(id, name, embed_url, description, report_id, group_id)')
+          .select(`dashboard_id, dashboards(${DASH_FIELDS})`)
           .eq('user_id', session.user.id)
           .order('assigned_at', { ascending: true }),
         supabase
           .from('group_members')
-          .select('group_dashboards(dashboard_id, dashboards(id, name, embed_url, description, report_id, group_id))')
+          .select('group_id')
           .eq('user_id', session.user.id),
       ]
 
       if (profile?.company_id) {
-        queries.push(
+        baseQueries.push(
           supabase
             .from('company_dashboards')
-            .select('dashboard_id, dashboards(id, name, embed_url, description, report_id, group_id)')
+            .select(`dashboard_id, dashboards(${DASH_FIELDS})`)
             .eq('company_id', profile.company_id)
         )
       }
 
-      const results = await Promise.all(queries)
+      const results = await Promise.all(baseQueries)
       const seen = new Set()
       const boards = []
 
+      const addBoard = (d) => { if (d && !seen.has(d.id)) { seen.add(d.id); boards.push(d) } }
+
       // user_dashboards
-      ;(results[0].data || []).forEach(row => {
-        const d = row.dashboards
-        if (d && !seen.has(d.id)) { seen.add(d.id); boards.push(d) }
-      })
-      // group_dashboards (nested)
-      ;(results[1].data || []).forEach(row => {
-        ;(row.group_dashboards || []).forEach(gd => {
-          const d = gd.dashboards
-          if (d && !seen.has(d.id)) { seen.add(d.id); boards.push(d) }
-        })
-      })
+      ;(results[0].data || []).forEach(row => addBoard(row.dashboards))
+
+      // group_dashboards — separate query to avoid group_id ambiguity
+      const groupIds = (results[1].data || []).map(r => r.group_id)
+      if (groupIds.length > 0) {
+        const { data: gdRows } = await supabase
+          .from('group_dashboards')
+          .select(`dashboard_id, dashboards(${DASH_FIELDS})`)
+          .in('group_id', groupIds)
+        ;(gdRows || []).forEach(row => addBoard(row.dashboards))
+      }
+
       // company_dashboards
       if (results[2]) {
-        ;(results[2].data || []).forEach(row => {
-          const d = row.dashboards
-          if (d && !seen.has(d.id)) { seen.add(d.id); boards.push(d) }
-        })
+        ;(results[2].data || []).forEach(row => addBoard(row.dashboards))
       }
 
       setDashboards(boards)
