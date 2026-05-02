@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { models, service, factories } from 'powerbi-client'
+import { Maximize2, X } from 'lucide-react'
 import { supabase } from '../lib/supabase.js'
 
 const pbiService = new service.Service(
@@ -11,9 +12,22 @@ const pbiService = new service.Service(
 const EDGE_FN = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/powerbi`
 
 export default function PowerBIEmbed({ dashboard, style }) {
-  const containerRef = useRef(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError]     = useState('')
+  const containerRef    = useRef(null)
+  const fullscreenRef   = useRef(null)
+  const tokenRef        = useRef(null)
+  const embedUrlRef     = useRef(null)
+  const [loading, setLoading]           = useState(true)
+  const [error, setError]               = useState('')
+  const [isMobile, setIsMobile]         = useState(false)
+  const [showFullscreen, setShowFullscreen] = useState(false)
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)')
+    setIsMobile(mq.matches)
+    const onChange = (e) => setIsMobile(e.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
 
   useEffect(() => {
     if (!dashboard.report_id || !dashboard.group_id) return
@@ -47,33 +61,36 @@ export default function PowerBIEmbed({ dashboard, style }) {
         if (!res.ok) throw new Error(json.error ?? json.message ?? 'Error obteniendo token')
         if (!alive) return
 
-        const isMobile = window.matchMedia('(max-width: 768px)').matches
+        tokenRef.current  = json.token
+        embedUrlRef.current = `https://app.powerbi.com/reportEmbed?reportId=${dashboard.report_id}&groupId=${dashboard.group_id}`
 
-        const embedConfig = (layoutType) => ({
+        const mobile = window.matchMedia('(max-width: 768px)').matches
+
+        const makeConfig = (layoutType) => ({
           type:        'report',
           tokenType:   models.TokenType.Embed,
           accessToken: json.token,
-          embedUrl:    `https://app.powerbi.com/reportEmbed?reportId=${dashboard.report_id}&groupId=${dashboard.group_id}`,
+          embedUrl:    embedUrlRef.current,
           settings: {
             panes: {
               filters:        { visible: false },
-              pageNavigation: { visible: !isMobile },
+              pageNavigation: { visible: !mobile },
             },
             background: models.BackgroundType.Transparent,
             layoutType,
           },
         })
 
-        const report = pbiService.embed(containerRef.current, embedConfig(
-          isMobile ? models.LayoutType.MobilePortrait : models.LayoutType.Master
+        const report = pbiService.embed(containerRef.current, makeConfig(
+          mobile ? models.LayoutType.MobilePortrait : models.LayoutType.Master
         ))
 
         report.on('error', (event) => {
           if (!alive) return
           const msg = event.detail?.message ?? ''
-          if (isMobile && (msg === 'mobileLayoutError' || msg.toLowerCase().includes('mobilelayout'))) {
+          if (mobile && (msg === 'mobileLayoutError' || msg.toLowerCase().includes('mobilelayout'))) {
             pbiService.reset(containerRef.current)
-            pbiService.embed(containerRef.current, embedConfig(models.LayoutType.Master))
+            pbiService.embed(containerRef.current, makeConfig(models.LayoutType.Master))
             return
           }
           setError(msg || 'Error al cargar el reporte de Power BI')
@@ -94,6 +111,30 @@ export default function PowerBIEmbed({ dashboard, style }) {
     }
   }, [dashboard.report_id, dashboard.group_id])
 
+  // Embed fullscreen (desktop layout, landscape orientation via CSS rotation)
+  useEffect(() => {
+    if (!showFullscreen || !fullscreenRef.current || !tokenRef.current) return
+
+    pbiService.embed(fullscreenRef.current, {
+      type:        'report',
+      tokenType:   models.TokenType.Embed,
+      accessToken: tokenRef.current,
+      embedUrl:    embedUrlRef.current,
+      settings: {
+        panes: {
+          filters:        { visible: false },
+          pageNavigation: { visible: true },
+        },
+        background:  models.BackgroundType.Transparent,
+        layoutType:  models.LayoutType.Master,
+      },
+    })
+
+    return () => {
+      if (fullscreenRef.current) pbiService.reset(fullscreenRef.current)
+    }
+  }, [showFullscreen])
+
   // Sin IDs configurados: fallback al iframe público
   if (!dashboard.report_id || !dashboard.group_id) {
     return (
@@ -107,29 +148,103 @@ export default function PowerBIEmbed({ dashboard, style }) {
   }
 
   return (
-    <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', ...style }}>
-      {loading && (
+    <>
+      <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', ...style }}>
+        {loading && (
+          <div style={{
+            position: 'absolute', inset: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'var(--bg-base)', zIndex: 1,
+          }}>
+            <div className="spinner" />
+          </div>
+        )}
+        {error && (
+          <div className="form-error visible" style={{ margin: 16 }}>{error}</div>
+        )}
+        <div ref={containerRef} style={{ flex: 1, width: '100%' }} />
+
+        {/* Cubre el banner "versión de prueba gratuita" de Power BI Embedded */}
+        {!loading && !error && (
+          <div style={{
+            position: 'absolute', top: 0, left: 0, right: 0,
+            height: 44,
+            background: 'var(--bg-surface)',
+            zIndex: 4,
+          }} />
+        )}
+
+        {/* Botón "Informe completo" — solo mobile, solo cuando cargó */}
+        {isMobile && !loading && !error && (
+          <button
+            onClick={() => setShowFullscreen(true)}
+            style={{
+              position: 'absolute', bottom: 16, right: 16,
+              zIndex: 5,
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '8px 14px',
+              background: 'var(--accent)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 8,
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer',
+              boxShadow: '0 2px 16px rgba(0,0,0,0.35)',
+            }}
+          >
+            <Maximize2 size={14} />
+            Informe completo
+          </button>
+        )}
+      </div>
+
+      {/* Overlay fullscreen girado 90° — simula landscape en portrait */}
+      {showFullscreen && (
         <div style={{
-          position: 'absolute', inset: 0,
+          position: 'fixed', inset: 0, zIndex: 9999,
+          background: '#000',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: 'var(--bg-base)', zIndex: 1,
+          overflow: 'hidden',
         }}>
-          <div className="spinner" />
+          <div style={{
+            position: 'absolute',
+            top: '50%', left: '50%',
+            width: '100vh',
+            height: '100vw',
+            transform: 'translate(-50%, -50%) rotate(90deg)',
+          }}>
+            {/* Embed container */}
+            <div ref={fullscreenRef} style={{ position: 'absolute', inset: 0 }} />
+
+            {/* Cubre el banner de prueba en vista fullscreen */}
+            <div style={{
+              position: 'absolute', top: 0, left: 0, right: 0,
+              height: 44,
+              background: 'var(--bg-surface)',
+              zIndex: 4,
+            }} />
+
+            {/* Botón cerrar — esquina superior derecha en vista landscape */}
+            <button
+              onClick={() => setShowFullscreen(false)}
+              style={{
+                position: 'absolute', top: 52, right: 8,
+                zIndex: 10,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: 36, height: 36,
+                background: 'rgba(0,0,0,0.55)',
+                border: '1px solid rgba(255,255,255,0.18)',
+                borderRadius: 8,
+                cursor: 'pointer',
+                color: '#fff',
+              }}
+            >
+              <X size={18} />
+            </button>
+          </div>
         </div>
       )}
-      {error && (
-        <div className="form-error visible" style={{ margin: 16 }}>{error}</div>
-      )}
-      <div ref={containerRef} style={{ flex: 1, width: '100%' }} />
-      {/* Cubre el banner "versión de prueba gratuita" de Power BI Embedded */}
-      {!loading && !error && (
-        <div style={{
-          position: 'absolute', top: 0, left: 0, right: 0,
-          height: 44,
-          background: 'var(--bg-surface)',
-          zIndex: 4,
-        }} />
-      )}
-    </div>
+    </>
   )
 }
