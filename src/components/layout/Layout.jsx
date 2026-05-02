@@ -10,9 +10,10 @@ import AdminUsers          from '../../pages/AdminUsers.jsx'
 import AdminDashboards     from '../../pages/AdminDashboards.jsx'
 import AdminCompanies      from '../../pages/AdminCompanies.jsx'
 import AdminCompanyDetail  from '../../pages/AdminCompanyDetail.jsx'
+import OwnerGroups         from '../../pages/OwnerGroups.jsx'
 
 export default function Layout() {
-  const { session, isAdmin, profile } = useAuth()
+  const { session, isAdmin, isCompanyOwner, profile } = useAuth()
   const { t } = useLang()
 
   // User dashboards
@@ -25,9 +26,9 @@ export default function Layout() {
 
   const contentRef = useRef(null)
 
-  // Load dashboards for regular users (user_dashboards + company_dashboards)
+  // Load dashboards for regular users (user_dashboards + company_dashboards + group_dashboards)
   useEffect(() => {
-    if (!session || isAdmin) return
+    if (!session || isAdmin || isCompanyOwner) return
 
     const load = async () => {
       const queries = [
@@ -36,9 +37,12 @@ export default function Layout() {
           .select('dashboard_id, dashboards(id, name, embed_url, description)')
           .eq('user_id', session.user.id)
           .order('assigned_at', { ascending: true }),
+        supabase
+          .from('group_members')
+          .select('group_dashboards(dashboard_id, dashboards(id, name, embed_url, description))')
+          .eq('user_id', session.user.id),
       ]
 
-      // Also load company dashboards if the user has a company
       if (profile?.company_id) {
         queries.push(
           supabase
@@ -52,19 +56,32 @@ export default function Layout() {
       const seen = new Set()
       const boards = []
 
-      results.forEach(res => {
-        ;(res.data || []).forEach(row => {
-          const d = row.dashboards
+      // user_dashboards
+      ;(results[0].data || []).forEach(row => {
+        const d = row.dashboards
+        if (d && !seen.has(d.id)) { seen.add(d.id); boards.push(d) }
+      })
+      // group_dashboards (nested)
+      ;(results[1].data || []).forEach(row => {
+        ;(row.group_dashboards || []).forEach(gd => {
+          const d = gd.dashboards
           if (d && !seen.has(d.id)) { seen.add(d.id); boards.push(d) }
         })
       })
+      // company_dashboards
+      if (results[2]) {
+        ;(results[2].data || []).forEach(row => {
+          const d = row.dashboards
+          if (d && !seen.has(d.id)) { seen.add(d.id); boards.push(d) }
+        })
+      }
 
       setDashboards(boards)
       if (boards.length > 0 && !activeDashboardId) setActiveDashId(boards[0].id)
     }
 
     load()
-  }, [session, isAdmin, profile?.company_id])
+  }, [session, isAdmin, isCompanyOwner, profile?.company_id])
 
   // Session tracking heartbeat
   useEffect(() => {
@@ -126,6 +143,7 @@ export default function Layout() {
       if (adminView === 'dashboards') return t('admin.boards.title')
       if (adminView === 'companies')  return selectedCompany ? selectedCompany.name : 'Empresas'
     }
+    if (isCompanyOwner) return 'Grupos'
     const active = dashboards.find(d => d.id === activeDashboardId)
     return active?.name || t('nav.dashboards')
   }
@@ -152,6 +170,8 @@ export default function Layout() {
                 ? <AdminCompanyDetail company={selectedCompany} onBack={handleBackFromCompany} />
                 : <AdminCompanies onSelect={handleSelectCompany} />
             ) : null
+          ) : isCompanyOwner ? (
+            <OwnerGroups />
           ) : (
             <UserDashboards
               dashboards={dashboards}

@@ -87,9 +87,22 @@ function AdminSidebar({ activeView, onSelect }) {
   )
 }
 
+// ── OWNER SIDEBAR ────────────────────────────────────────────
+function OwnerSidebar() {
+  return (
+    <>
+      <div className="nav-section">Mi empresa</div>
+      <button className="nav-item active">
+        <Users size={15} />
+        <span className="nav-item-label">Grupos</span>
+      </button>
+    </>
+  )
+}
+
 // ── SIDEBAR WRAPPER ──────────────────────────────────────────
 export default function Sidebar({ dashboards, activeDashboardId, onDashboardSelect, adminView, onAdminViewSelect }) {
-  const { isAdmin, profile } = useAuth()
+  const { isAdmin, isCompanyOwner, profile } = useAuth()
   const sidebarRef = useRef(null)
 
   useEffect(() => {
@@ -111,6 +124,8 @@ export default function Sidebar({ dashboards, activeDashboardId, onDashboardSele
       <div className="sidebar-nav">
         {isAdmin ? (
           <AdminSidebar activeView={adminView} onSelect={onAdminViewSelect} />
+        ) : isCompanyOwner ? (
+          <OwnerSidebar />
         ) : (
           <UserSidebar
             dashboards={dashboards}

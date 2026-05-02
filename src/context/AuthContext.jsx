@@ -208,7 +208,8 @@ export function AuthProvider({ children }) {
     }
   }
 
-  const isAdmin = profile?.role === 'admin'
+  const isAdmin        = profile?.role === 'admin'
+  const isCompanyOwner = profile?.company_role === 'owner' && !isAdmin
 
   return (
     <AuthContext.Provider
@@ -220,6 +221,7 @@ export function AuthProvider({ children }) {
         register,
         logout,
         isAdmin,
+        isCompanyOwner,
         loadProfile,
       }}
     >
