@@ -172,28 +172,31 @@ export default function Layout() {
         <main ref={contentRef} className="page-content">
           {isCompanyPaused ? (
             <div style={{
-              position: 'fixed', inset: 0,
-              background: 'var(--bg-base)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              zIndex: 50,
+              flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              minHeight: '70vh',
             }}>
               <div style={{
-                textAlign: 'center', maxWidth: 460, padding: '48px 40px',
-                background: 'var(--bg-card)', borderRadius: 16,
+                textAlign: 'center', maxWidth: 480, padding: '52px 44px',
+                background: 'var(--bg-card)', borderRadius: 18,
                 border: '1px solid var(--border)',
-                boxShadow: '0 8px 40px rgba(0,0,0,0.18)',
+                boxShadow: '0 8px 48px rgba(0,0,0,0.18)',
               }}>
+                <img
+                  src="/logo.png"
+                  alt="DataVision"
+                  style={{ height: 52, objectFit: 'contain', marginBottom: 32 }}
+                />
                 <div style={{
-                  width: 64, height: 64, borderRadius: '50%',
-                  background: 'rgba(var(--warning-rgb,234,179,8),0.12)',
+                  width: 56, height: 56, borderRadius: '50%',
+                  background: 'var(--danger-dim)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  margin: '0 auto 24px',
-                  fontSize: 32,
-                }}>⚠️</div>
-                <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 12 }}>
+                  margin: '0 auto 20px',
+                  fontSize: 26,
+                }}>🔒</div>
+                <div style={{ fontSize: 19, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 10 }}>
                   Acceso suspendido
                 </div>
-                <div style={{ fontSize: 15, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                <div style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.7 }}>
                   Su FEE mensual está pendiente de pago.<br />
                   Contactar al administrador.
                 </div>
