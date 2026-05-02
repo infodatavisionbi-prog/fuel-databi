@@ -37,12 +37,12 @@ export default function Layout() {
       const queries = [
         supabase
           .from('user_dashboards')
-          .select('dashboard_id, dashboards(id, name, embed_url, description)')
+          .select('dashboard_id, dashboards(id, name, embed_url, description, report_id, group_id)')
           .eq('user_id', session.user.id)
           .order('assigned_at', { ascending: true }),
         supabase
           .from('group_members')
-          .select('group_dashboards(dashboard_id, dashboards(id, name, embed_url, description))')
+          .select('group_dashboards(dashboard_id, dashboards(id, name, embed_url, description, report_id, group_id))')
           .eq('user_id', session.user.id),
       ]
 
@@ -50,7 +50,7 @@ export default function Layout() {
         queries.push(
           supabase
             .from('company_dashboards')
-            .select('dashboard_id, dashboards(id, name, embed_url, description)')
+            .select('dashboard_id, dashboards(id, name, embed_url, description, report_id, group_id)')
             .eq('company_id', profile.company_id)
         )
       }
