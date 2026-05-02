@@ -154,6 +154,42 @@ export default function Layout() {
     return active?.name || t('nav.dashboards')
   }
 
+  if (isCompanyPaused) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-base)' }}>
+        <Topbar title="" onMenuToggle={() => {}} />
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{
+            textAlign: 'center', maxWidth: 480, padding: '52px 44px',
+            background: 'var(--bg-card)', borderRadius: 18,
+            border: '1px solid var(--border)',
+            boxShadow: '0 8px 48px rgba(0,0,0,0.18)',
+          }}>
+            <img
+              src="/logo.png"
+              alt="DataVision"
+              style={{ height: 52, objectFit: 'contain', display: 'block', margin: '0 auto 32px' }}
+            />
+            <div style={{
+              width: 56, height: 56, borderRadius: '50%',
+              background: 'var(--danger-dim)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '0 auto 20px',
+              fontSize: 26,
+            }}>🔒</div>
+            <div style={{ fontSize: 19, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 10 }}>
+              Acceso suspendido
+            </div>
+            <div style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.7 }}>
+              Su FEE mensual está pendiente de pago.<br />
+              Contactar al administrador.
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="app-shell">
       <Sidebar
@@ -170,39 +206,7 @@ export default function Layout() {
         <Topbar title={getTitle()} onMenuToggle={() => setSidebarOpen(o => !o)} />
 
         <main ref={contentRef} className="page-content">
-          {isCompanyPaused ? (
-            <div style={{
-              flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              minHeight: '70vh',
-            }}>
-              <div style={{
-                textAlign: 'center', maxWidth: 480, padding: '52px 44px',
-                background: 'var(--bg-card)', borderRadius: 18,
-                border: '1px solid var(--border)',
-                boxShadow: '0 8px 48px rgba(0,0,0,0.18)',
-              }}>
-                <img
-                  src="/logo.png"
-                  alt="DataVision"
-                  style={{ height: 52, objectFit: 'contain', marginBottom: 32 }}
-                />
-                <div style={{
-                  width: 56, height: 56, borderRadius: '50%',
-                  background: 'var(--danger-dim)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  margin: '0 auto 20px',
-                  fontSize: 26,
-                }}>🔒</div>
-                <div style={{ fontSize: 19, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 10 }}>
-                  Acceso suspendido
-                </div>
-                <div style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.7 }}>
-                  Su FEE mensual está pendiente de pago.<br />
-                  Contactar al administrador.
-                </div>
-              </div>
-            </div>
-          ) : isAdmin ? (
+          {isAdmin ? (
             adminView === 'users'      ? <AdminUsers /> :
             adminView === 'dashboards' ? <AdminDashboards /> :
             adminView === 'companies'  ? (
