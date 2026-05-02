@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Eye, LayoutDashboard, Plus, Power, ShieldCheck, UserRound, X } from 'lucide-react'
+import { Eye, LayoutDashboard, Plus, Power, ShieldCheck, Trash2, UserRound, X } from 'lucide-react'
 import { supabase } from '../lib/supabase.js'
 import { useLang } from '../context/LanguageContext.jsx'
 
@@ -75,6 +75,15 @@ export default function AdminUsers() {
     setError('')
     const { error } = await supabase.from('profiles').update({ is_active: !user.is_active }).eq('id', user.id)
     if (error) { setError(error.message); return }
+    load()
+  }
+
+  const deleteUser = async (user) => {
+    if (!window.confirm(`¿Eliminar a ${user.full_name || user.email}? Esta acción no se puede deshacer.`)) return
+    setError('')
+    const { error } = await supabase.rpc('admin_delete_user', { target_user_id: user.id })
+    if (error) { setError(error.message); return }
+    if (selectedUser?.id === user.id) setSelectedUser(null)
     load()
   }
 
@@ -196,6 +205,9 @@ export default function AdminUsers() {
                       </button>
                       <button className="btn btn-ghost btn-icon" onClick={() => toggleActive(user)} title={user.is_active ? t('admin.users.deactivate') : t('admin.users.activate')}>
                         <Power size={14} />
+                      </button>
+                      <button className="btn btn-ghost btn-icon" onClick={() => deleteUser(user)} title="Eliminar usuario" style={{ color: 'var(--danger)' }}>
+                        <Trash2 size={14} />
                       </button>
                     </div>
                   </td>

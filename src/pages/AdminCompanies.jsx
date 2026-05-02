@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Building2, ChevronRight, LayoutDashboard, Plus, Users, X } from 'lucide-react'
+import { Building2, ChevronRight, LayoutDashboard, Plus, Trash2, Users, X } from 'lucide-react'
 import { supabase } from '../lib/supabase.js'
 
 function formatDate(v) {
@@ -39,6 +39,15 @@ export default function AdminCompanies({ onSelect }) {
   }
 
   useEffect(() => { load() }, [])
+
+  const deleteCompany = async (company, e) => {
+    e.stopPropagation()
+    if (!window.confirm(`¿Eliminar "${company.name}"? Los usuarios y tableros asociados no se eliminarán.`)) return
+    setError('')
+    const { error } = await supabase.from('companies').delete().eq('id', company.id)
+    if (error) { setError(error.message); return }
+    load()
+  }
 
   const createCompany = async () => {
     if (!newName.trim()) { setCreateError('El nombre es obligatorio'); return }
@@ -106,8 +115,18 @@ export default function AdminCompanies({ onSelect }) {
                     </span>
                   </td>
                   <td>{formatDate(c.created_at)}</td>
-                  <td style={{ width: 36, textAlign: 'right' }}>
-                    <ChevronRight size={16} style={{ color: 'var(--text-muted)' }} />
+                  <td style={{ width: 72, textAlign: 'right' }}>
+                    <div className="row-actions" style={{ justifyContent: 'flex-end' }}>
+                      <button
+                        className="btn btn-ghost btn-icon"
+                        onClick={(e) => deleteCompany(c, e)}
+                        title="Eliminar empresa"
+                        style={{ color: 'var(--danger)' }}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                      <ChevronRight size={16} style={{ color: 'var(--text-muted)' }} />
+                    </div>
                   </td>
                 </tr>
               ))}
