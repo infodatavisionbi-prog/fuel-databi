@@ -47,6 +47,8 @@ export default function PowerBIEmbed({ dashboard, style }) {
         if (!res.ok) throw new Error(json.error ?? json.message ?? 'Error obteniendo token')
         if (!alive) return
 
+        const isMobile = window.matchMedia('(max-width: 768px)').matches
+
         const report = pbiService.embed(containerRef.current, {
           type:        'report',
           tokenType:   models.TokenType.Embed,
@@ -54,10 +56,13 @@ export default function PowerBIEmbed({ dashboard, style }) {
           embedUrl:    `https://app.powerbi.com/reportEmbed?reportId=${dashboard.report_id}&groupId=${dashboard.group_id}`,
           settings: {
             panes: {
-              filters:         { visible: false },
-              pageNavigation:  { visible: true },
+              filters:        { visible: false },
+              pageNavigation: { visible: !isMobile },
             },
-            background: models.BackgroundType.Transparent,
+            background:  models.BackgroundType.Transparent,
+            layoutType:  isMobile
+              ? models.LayoutType.MobilePortrait
+              : models.LayoutType.Master,
           },
         })
 
