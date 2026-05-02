@@ -28,6 +28,7 @@ export default function AdminDashboards() {
   const [dashboards, setDashboards] = useState([])
   const [companies, setCompanies]   = useState([])
   const [loading, setLoading]       = useState(true)
+  const [loadError, setLoadError]   = useState('')
   const [saving, setSaving]         = useState(false)
   const [editing, setEditing]       = useState(null)
   const [form, setForm]             = useState(emptyForm)
@@ -35,27 +36,35 @@ export default function AdminDashboards() {
 
   const load = async () => {
     setLoading(true)
-    const [boardsRes, companiesRes] = await Promise.all([
-      supabase
-        .from('dashboards')
-        .select('*, user_dashboards(user_id), companies(id, name)')
-        .order('created_at', { ascending: false }),
-      supabase.from('companies').select('id, name').order('name'),
-    ])
-    if (boardsRes.error) setFormError(boardsRes.error.message)
-    else setDashboards(boardsRes.data || [])
-    setCompanies(companiesRes.data || [])
-    setLoading(false)
+    setLoadError('')
+    try {
+      const [boardsRes, companiesRes] = await Promise.all([
+        supabase
+          .from('dashboards')
+          .select('*, user_dashboards(user_id)')
+          .order('created_at', { ascending: false }),
+        supabase.from('companies').select('id, name').order('name'),
+      ])
+      if (boardsRes.error) throw boardsRes.error
+      if (companiesRes.error) throw companiesRes.error
+      setDashboards(boardsRes.data || [])
+      setCompanies(companiesRes.data || [])
+    } catch (err) {
+      setLoadError(err.message || 'Error cargando tableros')
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { load() }, [])
 
   // Agrupar por empresa: empresas ordenadas alfa, sin empresa al final
   const grouped = useMemo(() => {
+    const companyMap = Object.fromEntries(companies.map(c => [c.id, c.name]))
     const map = {}
     dashboards.forEach(board => {
       const key  = board.company_id || '__none__'
-      const name = board.companies?.name || 'Sin empresa'
+      const name = (board.company_id && companyMap[board.company_id]) || 'Sin empresa'
       if (!map[key]) map[key] = { name, boards: [] }
       map[key].boards.push(board)
     })
@@ -137,11 +146,13 @@ export default function AdminDashboards() {
         </button>
       </div>
 
+      {loadError && <div className="form-error visible" style={{ marginBottom: 16 }}>{loadError}</div>}
+
       {loading ? (
         <div className="card table-loading"><div className="spinner" /></div>
-      ) : dashboards.length === 0 ? (
+      ) : !loadError && dashboards.length === 0 ? (
         <div className="empty-state page-empty">{t('admin.boards.empty')}</div>
-      ) : (
+      ) : !loadError ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
           {grouped.map(([key, { name, boards }]) => (
             <div key={key}>
@@ -177,7 +188,7 @@ export default function AdminDashboards() {
             </div>
           ))}
         </div>
-      )}
+      ) : null}
 
       {editing && (
         <div className="modal-overlay open">
