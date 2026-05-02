@@ -942,17 +942,25 @@ td { padding: 13px 14px; font-size: 13px; color: var(--text-secondary); vertical
     position: fixed; left: 0; top: 0; bottom: 0; z-index: 200;
     transform: translateX(-100%);
     box-shadow: var(--shadow-lg);
-    transition: transform 0.25s ease;
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 240px;
   }
   .sidebar.open { transform: translateX(0); }
   .sidebar-backdrop {
     display: block;
     position: fixed; inset: 0; z-index: 199;
-    background: rgba(0, 0, 0, 0.40);
+    background: rgba(0, 0, 0, 0.45);
     backdrop-filter: blur(2px);
   }
   .main-area { width: 100%; }
-  .page-content { padding: 16px; }
-  .company-tabs { grid-template-columns: 1fr 1fr; }
-  .stat-grid { grid-template-columns: repeat(2, 1fr); }
+  .page-content { padding: 14px; }
+  .company-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+  .company-tab  { flex: 1 1 calc(50% - 6px); min-width: 120px; }
+  .stat-grid    { grid-template-columns: repeat(2, 1fr); }
+  .page-header  { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .table-wrap   { overflow-x: auto; }
+  .row-actions  { flex-wrap: wrap; }
+  .topbar       { padding: 0 12px; gap: 8px; }
+  .topbar-clock { display: none; }
+  .lang-switcher .lang-btn span { display: none; }
 }

@@ -135,6 +135,7 @@ export default function Sidebar({ dashboards, activeDashboardId, onDashboardSele
   const sidebarRef = useRef(null)
 
   useEffect(() => {
+    if (window.matchMedia('(max-width: 768px)').matches) return
     gsap.fromTo(
       sidebarRef.current,
       { x: -20, opacity: 0 },
