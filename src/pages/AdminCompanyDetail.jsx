@@ -1,5 +1,5 @@
-import { Fragment, useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, BarChart2, Crown, Eye, FolderOpen, LayoutDashboard, Plus, Power, ShieldCheck, Trash2, UserRound, Users, X } from 'lucide-react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { ArrowLeft, BarChart2, Crown, Download, Eye, FileText, FolderOpen, LayoutDashboard, Plus, Power, Receipt, ShieldCheck, Trash2, Upload, UserRound, Users, X } from 'lucide-react'
 import { supabase } from '../lib/supabase.js'
 
 function fmtDate(v, fallback = '—') {
@@ -647,6 +647,133 @@ function GroupsTab({ company }) {
   )
 }
 
+// ── FACTURAS ──────────────────────────────────────────────────────────────────
+function InvoicesTab({ company }) {
+  const [invoices, setInvoices]   = useState([])
+  const [loading, setLoading]     = useState(true)
+  const [uploading, setUploading] = useState(false)
+  const [error, setError]         = useState('')
+  const fileRef = useRef(null)
+
+  const load = async () => {
+    setLoading(true)
+    const { data, error } = await supabase
+      .from('company_invoices')
+      .select('*')
+      .eq('company_id', company.id)
+      .order('created_at', { ascending: false })
+    setInvoices(data || [])
+    setError(error?.message || '')
+    setLoading(false)
+  }
+
+  useEffect(() => { load() }, [company.id])
+
+  const handleUpload = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    setUploading(true)
+    setError('')
+    try {
+      const invoiceId = crypto.randomUUID()
+      const path = `${company.id}/${invoiceId}.pdf`
+      const { error: storageErr } = await supabase.storage.from('invoices').upload(path, file)
+      if (storageErr) throw storageErr
+      const { data: { user } } = await supabase.auth.getUser()
+      const { error: dbErr } = await supabase.from('company_invoices').insert({
+        company_id: company.id,
+        name: file.name,
+        file_path: path,
+        file_size: file.size,
+        uploaded_by: user?.id,
+      })
+      if (dbErr) throw dbErr
+      load()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setUploading(false)
+      e.target.value = ''
+    }
+  }
+
+  const download = async (invoice) => {
+    const { data, error } = await supabase.storage
+      .from('invoices')
+      .createSignedUrl(invoice.file_path, 120)
+    if (error) { setError(error.message); return }
+    window.open(data.signedUrl, '_blank')
+  }
+
+  const deleteInvoice = async (invoice) => {
+    if (!window.confirm(`¿Eliminar "${invoice.name}"?`)) return
+    await supabase.storage.from('invoices').remove([invoice.file_path])
+    await supabase.from('company_invoices').delete().eq('id', invoice.id)
+    load()
+  }
+
+  return (
+    <>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
+        <input ref={fileRef} type="file" accept="application/pdf" style={{ display: 'none' }} onChange={handleUpload} />
+        <button className="btn btn-primary" onClick={() => fileRef.current.click()} disabled={uploading}>
+          {uploading
+            ? <span className="spinner" style={{ width: 14, height: 14 }} />
+            : <Upload size={14} />}
+          Subir factura PDF
+        </button>
+      </div>
+
+      {error && <div className="form-error visible" style={{ marginBottom: 14 }}>{error}</div>}
+
+      <div className="card table-card">
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Documento</th>
+                <th>Tamaño</th>
+                <th>Fecha</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan="4"><div className="table-loading"><div className="spinner" /></div></td></tr>
+              ) : invoices.length === 0 ? (
+                <tr><td colSpan="4"><div className="empty-state">No hay facturas subidas todavía</div></td></tr>
+              ) : invoices.map(inv => (
+                <tr key={inv.id}>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <FileText size={15} style={{ color: 'var(--danger)', flexShrink: 0 }} />
+                      <span>{inv.name}</span>
+                    </div>
+                  </td>
+                  <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>
+                    {inv.file_size ? (inv.file_size < 1048576 ? `${(inv.file_size / 1024).toFixed(0)} KB` : `${(inv.file_size / 1048576).toFixed(1)} MB`) : '—'}
+                  </td>
+                  <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{fmtDate(inv.created_at)}</td>
+                  <td style={{ textAlign: 'right' }}>
+                    <div className="row-actions" style={{ justifyContent: 'flex-end' }}>
+                      <button className="btn btn-secondary btn-sm" onClick={() => download(inv)}>
+                        <Download size={13} /> Descargar
+                      </button>
+                      <button className="btn btn-ghost btn-icon" style={{ color: 'var(--danger)' }} onClick={() => deleteInvoice(inv)}>
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
+  )
+}
+
 // ── PRINCIPAL ─────────────────────────────────────────────────────────────────
 export default function AdminCompanyDetail({ company, onBack }) {
   const [tab, setTab] = useState('users')
@@ -682,13 +809,18 @@ export default function AdminCompanyDetail({ company, onBack }) {
           <FolderOpen size={20} />
           <span>Grupos</span>
         </button>
+        <button className={`company-tab ${tab === 'invoices' ? 'active' : ''}`} onClick={() => setTab('invoices')}>
+          <Receipt size={20} />
+          <span>Facturas</span>
+        </button>
       </div>
 
       <div style={{ marginTop: 20 }}>
-        {tab === 'users'  && <UsersTab  company={company} />}
-        {tab === 'boards' && <BoardsTab company={company} />}
-        {tab === 'stats'  && <StatsTab  company={company} />}
-        {tab === 'groups' && <GroupsTab company={company} />}
+        {tab === 'users'    && <UsersTab    company={company} />}
+        {tab === 'boards'   && <BoardsTab   company={company} />}
+        {tab === 'stats'    && <StatsTab    company={company} />}
+        {tab === 'groups'   && <GroupsTab   company={company} />}
+        {tab === 'invoices' && <InvoicesTab company={company} />}
       </div>
     </>
   )
