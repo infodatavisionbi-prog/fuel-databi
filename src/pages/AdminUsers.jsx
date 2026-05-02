@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Eye, LayoutDashboard, Plus, Power, ShieldCheck, Trash2, UserRound, X } from 'lucide-react'
+import { Edit3, Eye, LayoutDashboard, Plus, Power, ShieldCheck, Trash2, UserRound, X } from 'lucide-react'
 import { supabase } from '../lib/supabase.js'
 import { useLang } from '../context/LanguageContext.jsx'
 
@@ -30,6 +30,12 @@ export default function AdminUsers() {
   const [newUser, setNewUser]         = useState(emptyNewUser)
   const [creating, setCreating]       = useState(false)
   const [createError, setCreateError] = useState('')
+
+  // Editar usuario
+  const [editingUser, setEditingUser] = useState(null)
+  const [editForm, setEditForm]       = useState({})
+  const [editError, setEditError]     = useState('')
+  const [saving, setSaving]           = useState(false)
 
   // Preview tablero
   const [previewUrl, setPreviewUrl]   = useState(null)
@@ -110,6 +116,39 @@ export default function AdminUsers() {
       .eq('dashboard_id', dashboardId)
     if (error) { setError(error.message); return }
     load()
+  }
+
+  const openEdit = (user) => {
+    setEditingUser(user)
+    setEditForm({
+      full_name:    user.full_name    || '',
+      company_name: user.company_name || '',
+      role:         user.role         || 'user',
+      password:     '',
+    })
+    setEditError('')
+  }
+
+  const saveEdit = async () => {
+    setEditError('')
+    if (!editForm.full_name.trim()) { setEditError('El nombre es obligatorio'); return }
+    setSaving(true)
+    try {
+      const { error } = await supabase.rpc('admin_update_user', {
+        target_user_id:  editingUser.id,
+        new_full_name:   editForm.full_name.trim(),
+        new_company_name: editForm.company_name.trim() || null,
+        new_role:        editForm.role,
+        new_password:    editForm.password.trim() || null,
+      })
+      if (error) throw error
+      setEditingUser(null)
+      load()
+    } catch (err) {
+      setEditError(err.message || 'Error al guardar')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const createUser = async () => {
@@ -202,6 +241,9 @@ export default function AdminUsers() {
                     <div className="row-actions">
                       <button className="btn btn-secondary btn-sm" onClick={() => { setSelectedUser(user); setError('') }}>
                         <LayoutDashboard size={13} /> {t('admin.users.boards')}
+                      </button>
+                      <button className="btn btn-ghost btn-icon" onClick={() => openEdit(user)} title="Editar usuario">
+                        <Edit3 size={14} />
                       </button>
                       <button className="btn btn-ghost btn-icon" onClick={() => toggleActive(user)} title={user.is_active ? t('admin.users.deactivate') : t('admin.users.activate')}>
                         <Power size={14} />
@@ -305,6 +347,71 @@ export default function AdminUsers() {
               <button className="btn btn-primary" onClick={createUser} disabled={creating}>
                 {creating ? <span className="spinner" style={{ width: 14, height: 14 }} /> : <Plus size={14} />}
                 Crear usuario
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: editar usuario */}
+      {editingUser && (
+        <div className="modal-overlay open">
+          <div className="modal" style={{ maxWidth: 440 }}>
+            <div className="modal-header">
+              <div className="modal-title">Editar usuario</div>
+              <button className="btn btn-ghost btn-icon" onClick={() => setEditingUser(null)}><X size={16} /></button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label className="form-label">Nombre completo</label>
+                <input
+                  className="form-input"
+                  value={editForm.full_name}
+                  onChange={e => setEditForm(f => ({ ...f, full_name: e.target.value }))}
+                  placeholder="Juan García"
+                  autoFocus
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Empresa</label>
+                <input
+                  className="form-input"
+                  value={editForm.company_name}
+                  onChange={e => setEditForm(f => ({ ...f, company_name: e.target.value }))}
+                  placeholder="Acme S.A."
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Rol</label>
+                <select
+                  className="form-input"
+                  value={editForm.role}
+                  onChange={e => setEditForm(f => ({ ...f, role: e.target.value }))}
+                >
+                  <option value="user">Usuario</option>
+                  <option value="admin">Administrador</option>
+                </select>
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">
+                  Nueva contraseña
+                  <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: 6 }}>— dejar vacío para no cambiar</span>
+                </label>
+                <input
+                  className="form-input"
+                  type="password"
+                  value={editForm.password}
+                  onChange={e => setEditForm(f => ({ ...f, password: e.target.value }))}
+                  placeholder="Mínimo 6 caracteres"
+                />
+              </div>
+              {editError && <div className="form-error visible" style={{ marginTop: 12 }}>{editError}</div>}
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setEditingUser(null)}>Cancelar</button>
+              <button className="btn btn-primary" onClick={saveEdit} disabled={saving}>
+                {saving ? <span className="spinner" style={{ width: 14, height: 14 }} /> : <Edit3 size={14} />}
+                Guardar cambios
               </button>
             </div>
           </div>
