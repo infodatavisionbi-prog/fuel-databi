@@ -3,6 +3,13 @@ import { Download, FileText, LayoutDashboard, Plus, Trash2, UserRound, Users, X 
 import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import PowerBIEmbed from '../components/PowerBIEmbed.jsx'
+import PdfViewer from '../components/PdfViewer.jsx'
+
+const STATUS_OPTIONS = [
+  { value: 'pendiente',  label: 'Pendiente',  badge: 'badge-warning' },
+  { value: 'en_proceso', label: 'En proceso', badge: 'badge-accent'  },
+  { value: 'pagado',     label: 'Pagado',     badge: 'badge-success' },
+]
 
 function fmtDate(v) {
   if (!v) return '—'
@@ -299,6 +306,7 @@ function FacturasTab({ companyId }) {
   const [invoices, setInvoices] = useState([])
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState('')
+  const [viewing, setViewing]   = useState(null)
 
   useEffect(() => {
     const load = async () => {
@@ -315,14 +323,6 @@ function FacturasTab({ companyId }) {
     load()
   }, [companyId])
 
-  const download = async (invoice) => {
-    const { data, error } = await supabase.storage
-      .from('invoices')
-      .createSignedUrl(invoice.file_path, 120)
-    if (error) { setError(error.message); return }
-    window.open(data.signedUrl, '_blank')
-  }
-
   return (
     <>
       {error && <div className="form-error visible" style={{ marginBottom: 14 }}>{error}</div>}
@@ -332,6 +332,7 @@ function FacturasTab({ companyId }) {
             <thead>
               <tr>
                 <th>Documento</th>
+                <th>Estado</th>
                 <th>Tamaño</th>
                 <th>Fecha</th>
                 <th></th>
@@ -339,30 +340,36 @@ function FacturasTab({ companyId }) {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="4"><div className="table-loading"><div className="spinner" /></div></td></tr>
+                <tr><td colSpan="5"><div className="table-loading"><div className="spinner" /></div></td></tr>
               ) : invoices.length === 0 ? (
-                <tr><td colSpan="4"><div className="empty-state">No hay facturas disponibles</div></td></tr>
-              ) : invoices.map(inv => (
-                <tr key={inv.id}>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <FileText size={15} style={{ color: 'var(--danger)', flexShrink: 0 }} />
-                      <span>{inv.name}</span>
-                    </div>
-                  </td>
-                  <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{fmtSize(inv.file_size)}</td>
-                  <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{fmtDate(inv.created_at)}</td>
-                  <td style={{ textAlign: 'right' }}>
-                    <button className="btn btn-secondary btn-sm" onClick={() => download(inv)}>
-                      <Download size={13} /> Descargar
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                <tr><td colSpan="5"><div className="empty-state">No hay facturas disponibles</div></td></tr>
+              ) : invoices.map(inv => {
+                const st = STATUS_OPTIONS.find(s => s.value === inv.status) || STATUS_OPTIONS[0]
+                return (
+                  <tr key={inv.id}>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <FileText size={15} style={{ color: 'var(--danger)', flexShrink: 0 }} />
+                        <span>{inv.name}</span>
+                      </div>
+                    </td>
+                    <td><span className={`badge ${st.badge}`}>{st.label}</span></td>
+                    <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{fmtSize(inv.file_size)}</td>
+                    <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{fmtDate(inv.created_at)}</td>
+                    <td style={{ textAlign: 'right' }}>
+                      <button className="btn btn-secondary btn-sm" onClick={() => setViewing(inv)}>
+                        <Download size={13} /> Ver
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
       </div>
+
+      {viewing && <PdfViewer invoice={viewing} onClose={() => setViewing(null)} />}
     </>
   )
 }
