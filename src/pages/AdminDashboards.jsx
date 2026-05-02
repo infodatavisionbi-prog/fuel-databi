@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Building2, Edit3, Plus, Trash2 } from 'lucide-react'
+import { Building2, Edit3, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabase.js'
 import { useLang } from '../context/LanguageContext.jsx'
 
-const emptyForm = { name: '', embed_url: '', description: '', company_id: '' }
+const EDGE_FN = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/powerbi`
+const emptyForm = { name: '', embed_url: '', description: '', company_id: '', report_id: '', group_id: '' }
 
 function extractEmbedUrl(raw) {
   const trimmed = raw.trim()
@@ -33,6 +34,8 @@ export default function AdminDashboards() {
   const [editing, setEditing]       = useState(null)
   const [form, setForm]             = useState(emptyForm)
   const [formError, setFormError]   = useState('')
+  const [pbiReports, setPbiReports] = useState([])
+  const [loadingPbi, setLoadingPbi] = useState(false)
 
   const load = async () => {
     setLoading(true)
@@ -75,7 +78,27 @@ export default function AdminDashboards() {
     })
   }, [dashboards])
 
-  const openNew = () => { setEditing({ id: null }); setForm(emptyForm); setFormError('') }
+  const fetchPbiReports = async () => {
+    setLoadingPbi(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch(`${EDGE_FN}/reports`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Error')
+      setPbiReports(data)
+    } catch (err) {
+      setFormError(err.message)
+    } finally {
+      setLoadingPbi(false)
+    }
+  }
+
+  const openNew = () => {
+    setEditing({ id: null }); setForm(emptyForm); setFormError('')
+    setPbiReports([])
+  }
 
   const openEdit = (board) => {
     setEditing(board)
@@ -84,8 +107,11 @@ export default function AdminDashboards() {
       embed_url:   board.embed_url   || '',
       description: board.description || '',
       company_id:  board.company_id  || '',
+      report_id:   board.report_id   || '',
+      group_id:    board.group_id    || '',
     })
     setFormError('')
+    setPbiReports([])
   }
 
   const save = async () => {
@@ -106,6 +132,8 @@ export default function AdminDashboards() {
       embed_url:   embedUrl,
       description: form.description.trim() || null,
       company_id:  form.company_id || null,
+      report_id:   form.report_id.trim() || null,
+      group_id:    form.group_id.trim()  || null,
     }
 
     try {
@@ -241,6 +269,69 @@ export default function AdminDashboards() {
                 {isValidPowerBiUrl(form.embed_url) && (
                   <div style={{ fontSize: 11, color: 'var(--success)', marginTop: 4 }}>
                     ✓ URL detectada correctamente
+                  </div>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  Reporte Power BI (embed autenticado)
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={fetchPbiReports}
+                    disabled={loadingPbi}
+                    style={{ marginLeft: 'auto' }}
+                  >
+                    {loadingPbi
+                      ? <span className="spinner" style={{ width: 12, height: 12 }} />
+                      : <RefreshCw size={12} />}
+                    Buscar reportes
+                  </button>
+                </label>
+                {pbiReports.length > 0 ? (
+                  <select
+                    className="form-input"
+                    value={`${form.report_id}||${form.group_id}`}
+                    onChange={e => {
+                      const [report_id, group_id] = e.target.value.split('||')
+                      const found = pbiReports.find(r => r.report_id === report_id)
+                      setForm(f => ({
+                        ...f,
+                        report_id,
+                        group_id,
+                        embed_url: found?.embed_url || f.embed_url,
+                      }))
+                    }}
+                  >
+                    <option value="||">— Seleccionar reporte —</option>
+                    {pbiReports.map(r => (
+                      <option key={r.report_id} value={`${r.report_id}||${r.group_id}`}>
+                        {r.workspace} / {r.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      className="form-input"
+                      value={form.report_id}
+                      placeholder="Report ID (xxxxxxxx-xxxx-…)"
+                      onChange={e => setForm(f => ({ ...f, report_id: e.target.value }))}
+                      style={{ flex: 1 }}
+                    />
+                    <input
+                      className="form-input"
+                      value={form.group_id}
+                      placeholder="Workspace ID"
+                      onChange={e => setForm(f => ({ ...f, group_id: e.target.value }))}
+                      style={{ flex: 1 }}
+                    />
+                  </div>
+                )}
+                {(form.report_id && form.group_id) && (
+                  <div style={{ fontSize: 11, color: 'var(--success)', marginTop: 4 }}>
+                    ✓ Embed autenticado configurado
                   </div>
                 )}
               </div>
