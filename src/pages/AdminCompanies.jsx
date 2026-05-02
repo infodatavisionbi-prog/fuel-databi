@@ -137,23 +137,25 @@ export default function AdminCompanies({ onSelect }) {
 
       {showNew && (
         <div className="modal-overlay open">
-          <div className="modal">
+          <div className="modal" style={{ maxWidth: 400 }}>
             <div className="modal-header">
               <div className="modal-title">Nueva empresa</div>
               <button className="btn btn-ghost btn-icon" onClick={() => setShowNew(false)}><X size={16} /></button>
             </div>
-            <div className="form-group">
-              <label className="form-label">Nombre de la empresa</label>
-              <input
-                className="form-input"
-                value={newName}
-                placeholder="Ej: Acme S.A."
-                autoFocus
-                onChange={e => setNewName(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && createCompany()}
-              />
+            <div className="modal-body">
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Nombre de la empresa</label>
+                <input
+                  className="form-input"
+                  value={newName}
+                  placeholder="Ej: Acme S.A."
+                  autoFocus
+                  onChange={e => setNewName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && createCompany()}
+                />
+              </div>
+              {createError && <div className="form-error visible" style={{ marginTop: 10 }}>{createError}</div>}
             </div>
-            {createError && <div className="form-error visible" style={{ marginBottom: 14 }}>{createError}</div>}
             <div className="modal-footer">
               <button className="btn btn-secondary" onClick={() => setShowNew(false)}>Cancelar</button>
               <button className="btn btn-primary" onClick={createCompany} disabled={creating}>
