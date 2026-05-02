@@ -49,7 +49,7 @@ export default function PowerBIEmbed({ dashboard, style }) {
 
         const isMobile = window.matchMedia('(max-width: 768px)').matches
 
-        const report = pbiService.embed(containerRef.current, {
+        const embedConfig = (layoutType) => ({
           type:        'report',
           tokenType:   models.TokenType.Embed,
           accessToken: json.token,
@@ -59,18 +59,25 @@ export default function PowerBIEmbed({ dashboard, style }) {
               filters:        { visible: false },
               pageNavigation: { visible: !isMobile },
             },
-            background:  models.BackgroundType.Transparent,
-            layoutType:  isMobile
-              ? models.LayoutType.MobilePortrait
-              : models.LayoutType.Master,
+            background: models.BackgroundType.Transparent,
+            layoutType,
           },
         })
 
+        const report = pbiService.embed(containerRef.current, embedConfig(
+          isMobile ? models.LayoutType.MobilePortrait : models.LayoutType.Master
+        ))
+
         report.on('error', (event) => {
-          if (alive) {
-            setError(event.detail?.message ?? 'Error al cargar el reporte de Power BI')
-            setLoading(false)
+          if (!alive) return
+          const msg = event.detail?.message ?? ''
+          if (isMobile && (msg === 'mobileLayoutError' || msg.toLowerCase().includes('mobilelayout'))) {
+            pbiService.reset(containerRef.current)
+            pbiService.embed(containerRef.current, embedConfig(models.LayoutType.Master))
+            return
           }
+          setError(msg || 'Error al cargar el reporte de Power BI')
+          setLoading(false)
         })
 
         setLoading(false)
