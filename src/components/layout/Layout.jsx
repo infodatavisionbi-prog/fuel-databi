@@ -13,7 +13,7 @@ import AdminCompanyDetail  from '../../pages/AdminCompanyDetail.jsx'
 import OwnerGroups         from '../../pages/OwnerGroups.jsx'
 
 export default function Layout() {
-  const { session, isAdmin, isCompanyOwner, profile } = useAuth()
+  const { session, isAdmin, isCompanyOwner, isCompanyPaused, profile } = useAuth()
   const { t } = useLang()
 
   // User dashboards
@@ -170,7 +170,36 @@ export default function Layout() {
         <Topbar title={getTitle()} onMenuToggle={() => setSidebarOpen(o => !o)} />
 
         <main ref={contentRef} className="page-content">
-          {isAdmin ? (
+          {isCompanyPaused ? (
+            <div style={{
+              position: 'fixed', inset: 0,
+              background: 'var(--bg-base)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              zIndex: 50,
+            }}>
+              <div style={{
+                textAlign: 'center', maxWidth: 460, padding: '48px 40px',
+                background: 'var(--bg-card)', borderRadius: 16,
+                border: '1px solid var(--border)',
+                boxShadow: '0 8px 40px rgba(0,0,0,0.18)',
+              }}>
+                <div style={{
+                  width: 64, height: 64, borderRadius: '50%',
+                  background: 'rgba(var(--warning-rgb,234,179,8),0.12)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  margin: '0 auto 24px',
+                  fontSize: 32,
+                }}>⚠️</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 12 }}>
+                  Acceso suspendido
+                </div>
+                <div style={{ fontSize: 15, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                  Su FEE mensual está pendiente de pago.<br />
+                  Contactar al administrador.
+                </div>
+              </div>
+            </div>
+          ) : isAdmin ? (
             adminView === 'users'      ? <AdminUsers /> :
             adminView === 'dashboards' ? <AdminDashboards /> :
             adminView === 'companies'  ? (

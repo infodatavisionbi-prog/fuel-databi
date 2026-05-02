@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Building2, ChevronRight, LayoutDashboard, Plus, Trash2, Users, X } from 'lucide-react'
+import { Building2, ChevronRight, LayoutDashboard, Pause, Play, Plus, Trash2, Users, X } from 'lucide-react'
 import { supabase } from '../lib/supabase.js'
 
 function formatDate(v) {
@@ -39,6 +39,16 @@ export default function AdminCompanies({ onSelect }) {
   }
 
   useEffect(() => { load() }, [])
+
+  const togglePause = async (company, e) => {
+    e.stopPropagation()
+    const { error } = await supabase
+      .from('companies')
+      .update({ paused: !company.paused })
+      .eq('id', company.id)
+    if (error) { setError(error.message); return }
+    load()
+  }
 
   const deleteCompany = async (company, e) => {
     e.stopPropagation()
@@ -83,6 +93,7 @@ export default function AdminCompanies({ onSelect }) {
             <thead>
               <tr>
                 <th>Empresa</th>
+                <th>Estado</th>
                 <th>Usuarios</th>
                 <th>Tableros</th>
                 <th>Alta</th>
@@ -91,9 +102,9 @@ export default function AdminCompanies({ onSelect }) {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="5"><div className="table-loading"><div className="spinner" /></div></td></tr>
+                <tr><td colSpan="6"><div className="table-loading"><div className="spinner" /></div></td></tr>
               ) : companies.length === 0 ? (
-                <tr><td colSpan="5"><div className="empty-state">No hay empresas todavía</div></td></tr>
+                <tr><td colSpan="6"><div className="empty-state">No hay empresas todavía</div></td></tr>
               ) : companies.map(c => (
                 <tr key={c.id} className="clickable-row" onClick={() => onSelect(c)}>
                   <td>
@@ -101,6 +112,12 @@ export default function AdminCompanies({ onSelect }) {
                       <div className="avatar"><Building2 size={14} /></div>
                       <strong>{c.name}</strong>
                     </div>
+                  </td>
+                  <td>
+                    {c.paused
+                      ? <span className="badge badge-danger">Pausada</span>
+                      : <span className="badge badge-success">Activa</span>
+                    }
                   </td>
                   <td>
                     <span className="badge badge-accent">
@@ -115,8 +132,16 @@ export default function AdminCompanies({ onSelect }) {
                     </span>
                   </td>
                   <td>{formatDate(c.created_at)}</td>
-                  <td style={{ width: 72, textAlign: 'right' }}>
+                  <td style={{ width: 96, textAlign: 'right' }}>
                     <div className="row-actions" style={{ justifyContent: 'flex-end' }}>
+                      <button
+                        className="btn btn-ghost btn-icon"
+                        onClick={(e) => togglePause(c, e)}
+                        title={c.paused ? 'Reanudar empresa' : 'Pausar empresa'}
+                        style={{ color: c.paused ? 'var(--success)' : 'var(--warning)' }}
+                      >
+                        {c.paused ? <Play size={14} /> : <Pause size={14} />}
+                      </button>
                       <button
                         className="btn btn-ghost btn-icon"
                         onClick={(e) => deleteCompany(c, e)}

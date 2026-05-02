@@ -35,7 +35,7 @@ export function AuthProvider({ children }) {
 
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select('*, companies(paused)')
         .eq('id', userId)
         .single()
 
@@ -208,8 +208,9 @@ export function AuthProvider({ children }) {
     }
   }
 
-  const isAdmin        = profile?.role === 'admin'
-  const isCompanyOwner = profile?.company_role === 'owner' && !isAdmin
+  const isAdmin          = profile?.role === 'admin'
+  const isCompanyOwner   = profile?.company_role === 'owner' && !isAdmin
+  const isCompanyPaused  = !isAdmin && profile?.companies?.paused === true
 
   return (
     <AuthContext.Provider
@@ -222,6 +223,7 @@ export function AuthProvider({ children }) {
         logout,
         isAdmin,
         isCompanyOwner,
+        isCompanyPaused,
         loadProfile,
       }}
     >
