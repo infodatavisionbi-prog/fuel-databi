@@ -17,7 +17,8 @@ function readCache() {
 export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(readCache())
   const [session, setSession] = useState(null)
-  const [loading, setLoading] = useState(true)
+  // Skip loading screen if we have a cached profile — validate session in background
+  const [loading, setLoading] = useState(() => !readCache())
 
   const clearProfile = useCallback(() => {
     setProfile(null)

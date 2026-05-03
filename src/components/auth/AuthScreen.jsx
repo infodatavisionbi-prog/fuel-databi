@@ -2,10 +2,12 @@ import { useState, useEffect, useRef } from 'react'
 import { gsap } from 'gsap'
 import { Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext.jsx'
+import { useTheme } from '../../context/ThemeContext.jsx'
 import { useLang } from '../../context/LanguageContext.jsx'
 import { LANGS } from '../../i18n/index.js'
 
 export default function AuthScreen() {
+  const { theme } = useTheme()
   const [tab, setTab]               = useState('login')
   const [loading, setLoading]       = useState(false)
   const [error, setError]           = useState('')
@@ -103,7 +105,7 @@ export default function AuthScreen() {
         {/* Logo */}
         <div className="auth-logo-wrap">
           <img
-            src="/logo.png"
+            src={theme === 'dark' ? './logo-dark.png' : './logo-light.png'}
             alt="DataVision"
             style={{ width: '100%', maxWidth: 360, maxHeight: 110, height: 'auto', objectFit: 'contain', display: 'block', margin: '0 auto 14px' }}
           />

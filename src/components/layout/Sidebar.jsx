@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { gsap } from 'gsap'
 import { AlertCircle, BarChart2, Building2, FileText, FolderOpen, LayoutDashboard, Receipt, Table2, Users } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext.jsx'
+import { useTheme } from '../../context/ThemeContext.jsx'
 import { useLang } from '../../context/LanguageContext.jsx'
 
 // ── USER SIDEBAR ────────────────────────────────────────────
@@ -132,6 +133,7 @@ function OwnerSidebar({ dashboards, activeView, onSelect }) {
 // ── SIDEBAR WRAPPER ──────────────────────────────────────────
 export default function Sidebar({ dashboards, activeDashboardId, onDashboardSelect, adminView, onAdminViewSelect, ownerView, ownerDashboards, onOwnerSelect, isOpen, onClose }) {
   const { isAdmin, isCompanyOwner, profile } = useAuth()
+  const { theme } = useTheme()
   const sidebarRef = useRef(null)
 
   useEffect(() => {
@@ -149,7 +151,7 @@ export default function Sidebar({ dashboards, activeDashboardId, onDashboardSele
       <aside ref={sidebarRef} className={`sidebar${isOpen ? ' open' : ''}`}>
       {/* Logo */}
       <div className="sidebar-logo">
-        <img src="/logo.png" alt="DataVision" className="sidebar-logo-img" />
+        <img src={theme === 'dark' ? './logo-dark.png' : './logo-light.png'} alt="DataVision" className="sidebar-logo-img" />
       </div>
 
       {/* Navigation */}

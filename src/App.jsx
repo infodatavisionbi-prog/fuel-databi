@@ -1,7 +1,7 @@
 import { Component } from 'react'
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
 import { LanguageProvider } from './context/LanguageContext.jsx'
-import { ThemeProvider } from './context/ThemeContext.jsx'
+import { ThemeProvider, useTheme } from './context/ThemeContext.jsx'
 import AuthScreen from './components/auth/AuthScreen.jsx'
 import Layout from './components/layout/Layout.jsx'
 
@@ -57,18 +57,14 @@ class ErrorBoundary extends Component {
 }
 
 function LoadingScreen() {
+  const { theme } = useTheme()
   return (
     <div className="auth-screen">
       <div className="loading-panel">
         <img
-          src="/logo.png"
+          src={theme === 'dark' ? './logo-dark.png' : './logo-light.png'}
           alt="DataVision"
-          style={{
-            width: 180,
-            height: 'auto',
-            objectFit: 'contain',
-            marginBottom: 20,
-          }}
+          style={{ width: 200, height: 'auto', objectFit: 'contain', marginBottom: 20 }}
         />
         <div className="spinner" />
       </div>
@@ -79,14 +75,9 @@ function LoadingScreen() {
 function AppGate() {
   const { session, profile, loading } = useAuth()
 
-  if (loading) {
-    return <LoadingScreen />
-  }
-
-  if (session && profile) {
-    return <Layout />
-  }
-
+  // Profile from cache → show app immediately; session validates in background
+  if (profile) return <Layout />
+  if (loading) return <LoadingScreen />
   return <AuthScreen />
 }
 
