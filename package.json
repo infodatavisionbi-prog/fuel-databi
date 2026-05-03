@@ -16,8 +16,8 @@
     "make-app": "vite build --base ./ && electron-builder --win"
   },
   "build": {
-    "appId": "com.datavision.bi",
-    "productName": "DataVision BI",
+    "appId": "com.datavision.fuels",
+    "productName": "Fuels - DataVision",
     "directories": {
       "output": "release"
     },
@@ -31,6 +31,7 @@
         { "target": "nsis", "arch": ["x64"] },
         { "target": "zip",  "arch": ["x64"] }
       ],
+      "icon": "build/icon.png",
       "signAndEditExecutable": false
     },
     "nsis": {
@@ -39,7 +40,8 @@
       "allowToChangeInstallationDirectory": false,
       "deleteAppDataOnUninstall": false,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "shortcutName": "Fuels - DataVision"
     },
     "asar": false
   },

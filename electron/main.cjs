@@ -14,8 +14,8 @@ function createWindow() {
     height: 768,
     minWidth: 960,
     minHeight: 600,
-    title: 'DataVision BI',
-    icon: path.join(DIST, 'logo.png'),
+    title: 'Fuels - DataVision',
+    icon: path.join(__dirname, '..', 'build', 'icon.png'),
     backgroundColor: '#1e2230',
     show: false,
     webPreferences: {
