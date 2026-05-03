@@ -13,7 +13,7 @@
     "preview": "vite preview",
     "start": "npx serve -s dist -l ${PORT:-3000}",
     "electron": "vite build && electron .",
-    "make-app": "vite build --base ./ && electron-builder --win portable"
+    "make-app": "vite build --base ./ && electron-builder --win"
   },
   "build": {
     "appId": "com.datavision.bi",
@@ -27,8 +27,19 @@
       "package.json"
     ],
     "win": {
-      "target": [{ "target": "portable", "arch": ["x64"] }],
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "zip",  "arch": ["x64"] }
+      ],
       "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "deleteAppDataOnUninstall": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
     },
     "asar": false
   },
