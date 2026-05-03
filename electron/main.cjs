@@ -17,7 +17,7 @@ function createWindow() {
     title: 'DataVision BI',
     icon: path.join(DIST, 'logo.png'),
     backgroundColor: '#1e2230',
-    show: true,
+    show: false,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -26,6 +26,7 @@ function createWindow() {
   })
 
   win.setMenuBarVisibility(false)
+  win.once('ready-to-show', () => win.show())
   win.loadFile(path.join(DIST, 'index.html'))
 
   win.webContents.setWindowOpenHandler(({ url }) => {
