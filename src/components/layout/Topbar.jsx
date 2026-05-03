@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react'
-import { Sun, Moon, LogOut, Menu } from 'lucide-react'
+import { Sun, Moon, LogOut, Menu, Monitor } from 'lucide-react'
+
+const DESKTOP_URL = 'https://github.com/infodatavisionbi-prog/fuel-databi/releases/latest/download/Fuels%20-%20DataVision%20Setup%201.0.0.exe'
+const isElectron  = navigator.userAgent.includes('Electron')
 import { useAuth }  from '../../context/AuthContext.jsx'
 import { useTheme } from '../../context/ThemeContext.jsx'
 import { useLang }  from '../../context/LanguageContext.jsx'
@@ -65,6 +68,19 @@ export default function Topbar({ title, onMenuToggle }) {
           </button>
         ))}
       </div>
+
+      {/* Download desktop */}
+      {!isElectron && (
+        <a
+          href={DESKTOP_URL}
+          className="btn btn-secondary btn-sm"
+          style={{ textDecoration: 'none', gap: 5 }}
+          title="Descargar versión escritorio"
+        >
+          <Monitor size={13} />
+          <span style={{ fontSize: 12 }}>App escritorio</span>
+        </a>
+      )}
 
       {/* User section */}
       <div className="topbar-user">
