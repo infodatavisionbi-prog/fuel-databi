@@ -30,7 +30,8 @@ export const translations = {
     'nav.no_boards':   'Sin paneles asignados',
 
     // Topbar
-    'topbar.welcome':  'Bienvenido,',
+    'topbar.welcome':       'Bienvenido,',
+    'topbar.desktop_app':   'App escritorio',
 
     // Dashboard
     'dash.empty_title': 'Sin paneles asignados',
@@ -122,7 +123,8 @@ export const translations = {
     'nav.companies':   'Companies',
     'nav.no_boards':   'No boards assigned',
 
-    'topbar.welcome':  'Welcome,',
+    'topbar.welcome':     'Welcome,',
+    'topbar.desktop_app': 'Desktop app',
 
     'dash.empty_title': 'No dashboards assigned',
     'dash.empty_desc':  'The administrator has not yet assigned any Power BI dashboard to your account.',
@@ -209,7 +211,8 @@ export const translations = {
     'nav.companies':   'Empresas',
     'nav.no_boards':   'Sem painéis atribuídos',
 
-    'topbar.welcome':  'Bem-vindo,',
+    'topbar.welcome':     'Bem-vindo,',
+    'topbar.desktop_app': 'App desktop',
 
     'dash.empty_title': 'Sem painéis atribuídos',
     'dash.empty_desc':  'O administrador ainda não atribuiu nenhum painel de Power BI à sua conta.',

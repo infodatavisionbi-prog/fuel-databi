@@ -78,7 +78,7 @@ export default function Topbar({ title, onMenuToggle }) {
           title="Descargar versión escritorio"
         >
           <Monitor size={13} />
-          <span style={{ fontSize: 12 }}>App escritorio</span>
+          <span style={{ fontSize: 12 }}>{t('topbar.desktop_app')}</span>
         </a>
       )}
 
