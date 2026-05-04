@@ -73,6 +73,9 @@ export default function Topbar({ title, onMenuToggle }) {
       {!isElectron && (
         <a
           href={DESKTOP_URL}
+          download="Fuels - DataVision 1.0.exe"
+          target="_blank"
+          rel="noreferrer"
           className="btn btn-secondary btn-sm"
           style={{ textDecoration: 'none', gap: 5 }}
           title="Descargar versión escritorio"
