@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Sun, Moon, LogOut, Menu, Monitor } from 'lucide-react'
 
-const DESKTOP_URL = 'https://datavision-bi.com/Fuels%20-%20DataVision%201.0.exe'
+const DESKTOP_URL = 'https://datavision-bi.com/Fuels-DataVision-1.0.exe'
 const isElectron  = navigator.userAgent.includes('Electron')
 import { useAuth }  from '../../context/AuthContext.jsx'
 import { useTheme } from '../../context/ThemeContext.jsx'
